@@ -1,0 +1,28 @@
+{
+  "name": "{{APP_NAME}}",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n vite,php -c cyan,magenta \"vite\" \"php -S localhost:8000 api/index.php\"",
+    "dev:vite": "vite",
+    "dev:php": "php -S localhost:8000 api/index.php",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "vue": "^3.5.30",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.5",
+    "autoprefixer": "^10.4.27",
+    "concurrently": "^9.1.0",
+    "jsdom": "^29.0.1",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.0.1",
+    "vitest": "^4.1.2"
+  }
+}

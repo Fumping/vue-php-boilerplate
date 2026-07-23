@@ -1,0 +1,29 @@
+node_modules/
+dist/
+dist-ssr/
+.env
+.env.local
+.DS_Store
+.superpowers/
+.worktrees/
+
+# Local secrets & data
+api/config.php
+api/storage/db.sqlite
+api/storage/db.sqlite-shm
+api/storage/db.sqlite-wal
+api/storage/tmp/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+*.log
+npm-debug.log*
