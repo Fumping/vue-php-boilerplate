@@ -1,0 +1,19 @@
+# Blokkeer directe toegang tot gevoelige bestanden
+<FilesMatch "\.(sqlite|sqlite-shm|sqlite-wal)$">
+    Require all denied
+</FilesMatch>
+
+<Files "config.php">
+    Require all denied
+</Files>
+
+<Files "config.example.php">
+    Require all denied
+</Files>
+
+# Stuur alle non-existent paden binnen /api/ naar index.php
+RewriteEngine On
+RewriteBase /api/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
