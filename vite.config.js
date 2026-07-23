@@ -1,8 +1,23 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { copyApiPlugin } from './scripts/copy-api.js'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    copyApiPlugin({
+      src: 'api',
+      dest: 'dist/api',
+      exclude: [
+        'config.php',
+        'storage/db.sqlite',
+        'storage/db.sqlite-shm',
+        'storage/db.sqlite-wal',
+        'storage/tmp/**',
+        '**/*.log',
+      ],
+    }),
+  ],
   base: '/',
   server: {
     port: 5173,
