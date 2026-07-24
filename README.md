@@ -5,17 +5,29 @@ Vue 3 frontend, PHP 8 flat-router API in `/api/`, SQLite lokaal, MySQL in produc
 
 ## Snelle start
 
+Clone eerst de [Digital Driven Vue/PHP-boilerplate](https://github.com/digitaldriven/vue-php-boilerplate)
+en laat het setupscript daaruit een zelfstandige applicatie met een nieuwe
+Git-history maken:
+
 ```bash
-# 1. Kopieer of gebruik het setup-script
+# 1. Download de boilerplate
+git clone https://github.com/digitaldriven/vue-php-boilerplate.git
+cd vue-php-boilerplate
+
+# 2. Kopieer de boilerplate naar je nieuwe project
 ./scripts/create-app.sh ../mijn-nieuwe-app "Mijn Nieuwe App"
 cd ../mijn-nieuwe-app
 
-# 2. Installeer dependencies
-npm install
+# 3. Installeer exact de vastgelegde dependencies
+npm ci
 
-# 3. Start ontwikkeling (Vite + PHP parallel)
+# 4. Start ontwikkeling (Vite + PHP parallel)
 npm run dev
 ```
+
+Het setupscript kopieert geen `.git`, lokale secrets, database of build-output.
+Het maakt lokale configuratie aan, kan een lege SQLite-database creëren en kan
+het nieuwe project direct als een aparte Git-repository initialiseren.
 
 Open daarna [http://localhost:5173/](http://localhost:5173/).
 
