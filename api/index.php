@@ -1,54 +1,71 @@
 <?php
 declare(strict_types=1);
 
-// ─── Bootstrap ────────────────────────────────────────────────────
-$configPath = __DIR__ . '/config.php';
-if (!file_exists($configPath)) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'error'  => 'missing_config',
-        'detail' => 'Kopieer api/config.example.php naar api/config.php.',
-    ]);
-    exit;
-}
-require $configPath;
 require __DIR__ . '/helpers/response.php';
+applySecurityHeaders();
+registerSafeExceptionHandler();
+
+$configuredPath = getenv('APP_CONFIG_PATH');
+$configPath = is_string($configuredPath) && $configuredPath !== ''
+    ? $configuredPath
+    : __DIR__ . '/config.php';
+if (!file_exists($configPath)) {
+    errorResponse('server_not_configured', 500);
+}
+
+require $configPath;
+require __DIR__ . '/helpers/request.php';
+require __DIR__ . '/helpers/database.php';
 require __DIR__ . '/helpers/auth.php';
 
-// ─── CORS ─────────────────────────────────────────────────────────
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Api-Key');
+validateAppConfig($configPath);
+$db = getDb();
+initializeDatabase($db);
 
-if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+if (!is_string($path)) {
+    errorResponse('invalid_request_path', 400);
+}
+$path = preg_replace('#^/api(?=/|$)#', '', $path) ?: '/';
+
+if ($method === 'OPTIONS') {
     http_response_code(204);
     exit;
 }
 
-// ─── Path & method ────────────────────────────────────────────────
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-
-// Strip leading /api zodat /api/health en /health beide werken
-// (Vite proxy stuurt met prefix door; Apache rewrite ook)
-$path = preg_replace('#^/api(?=/|$)#', '', $path) ?: '/';
-
-// ─── Stage 1: publieke endpoints (voor requireApiKey) ─────────────
+// Publiek
 if ($method === 'GET' && $path === '/') {
     require __DIR__ . '/handlers/health.php';
     exit;
 }
+if ($method === 'POST' && $path === '/auth/login') {
+    require __DIR__ . '/handlers/auth-login.php';
+    exit;
+}
+if ($method === 'GET' && $path === '/auth/me') {
+    require __DIR__ . '/handlers/auth-me.php';
+    exit;
+}
 
-// ─── Stage 2: API-key gate ────────────────────────────────────────
-requireApiKey();
+// Ingelogd
+if ($method === 'POST' && $path === '/auth/logout') {
+    require __DIR__ . '/handlers/auth-logout.php';
+    exit;
+}
+if ($method === 'POST' && $path === '/auth/change-password') {
+    require __DIR__ . '/handlers/auth-change-password.php';
+    exit;
+}
 
-// ─── Stage 3: beschermde endpoints ───────────────────────────────
-// Voeg hier je handlers toe. Voorbeeld:
-// if ($method === 'GET' && $path === '/items') {
-//     require __DIR__ . '/handlers/items-list.php';
-//     exit;
-// }
+// Alleen admins
+if ($method === 'GET' && $path === '/admin/users') {
+    require __DIR__ . '/handlers/admin-users-list.php';
+    exit;
+}
+if ($method === 'POST' && $path === '/admin/users') {
+    require __DIR__ . '/handlers/admin-users-create.php';
+    exit;
+}
 
-// ─── 404 ──────────────────────────────────────────────────────────
-errorResponse('not_found', 404, ['path' => $path, 'method' => $method]);
+errorResponse('not_found', 404);

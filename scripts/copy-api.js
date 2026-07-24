@@ -26,7 +26,12 @@ function isExcluded(relPath, excludes) {
   return excludes.some((pattern) => matchesGlob(p, pattern))
 }
 
-function walk(srcDir, destDir, excludes, srcRoot) {
+function isIncluded(relPath, includes) {
+  const p = toPosix(relPath)
+  return includes.some((pattern) => matchesGlob(p, pattern))
+}
+
+function walk(srcDir, destDir, includes, excludes, srcRoot) {
   let copied = 0
   for (const entry of readdirSync(srcDir)) {
     const srcPath = join(srcDir, entry)
@@ -37,8 +42,9 @@ function walk(srcDir, destDir, excludes, srcRoot) {
     const stat = statSync(srcPath)
     if (stat.isDirectory()) {
       if (!existsSync(destPath)) mkdirSync(destPath, { recursive: true })
-      copied += walk(srcPath, destPath, excludes, srcRoot)
+      copied += walk(srcPath, destPath, includes, excludes, srcRoot)
     } else {
+      if (!isIncluded(relPath, includes)) continue
       copyFileSync(srcPath, destPath)
       copied += 1
     }
@@ -49,17 +55,22 @@ function walk(srcDir, destDir, excludes, srcRoot) {
 export function copyApiPlugin(options = {}) {
   const src = options.src ?? 'api'
   const dest = options.dest ?? 'dist/api'
+  const include = options.include ?? [
+    '.htaccess',
+    'index.php',
+    'config.example.php',
+    'handlers/**/*.php',
+    'helpers/**/*.php',
+    'storage/.htaccess',
+  ]
   const exclude = options.exclude ?? [
     'config.php',
     'config.local.php',
-    'storage/db.sqlite',
-    'storage/db.sqlite-shm',
-    'storage/db.sqlite-wal',
-    'storage/db.sqlite-journal',
+    'storage/**/*.sqlite*',
     'storage/tmp/**',
-    '**/.env',
-    '**/.env.local',
+    '**/.env*',
     '**/*.log',
+    '**/*.bak',
   ]
 
   return {
@@ -71,7 +82,7 @@ export function copyApiPlugin(options = {}) {
         return
       }
       if (!existsSync(dest)) mkdirSync(dest, { recursive: true })
-      const count = walk(src, dest, exclude, src)
+      const count = walk(src, dest, include, exclude, src)
       console.log(`[copy-api] copied ${count} files from ${src}/ → ${dest}/`)
     },
   }

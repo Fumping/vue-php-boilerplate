@@ -37,13 +37,13 @@ Open daarna [http://localhost:5173/](http://localhost:5173/).
 .
 ├── api/                    PHP API
 │   ├── index.php           Flat router
-│   ├── config.example.php  DB + API_KEY config template
+│   ├── config.example.php  DB, sessie- en bootstrapconfig
 │   ├── handlers/           1 bestand per endpoint
 │   └── helpers/            auth.php, response.php
 ├── src/                    Vue frontend
 │   ├── main.js
 │   ├── router/index.js
-│   ├── lib/api.js          Fetch-wrapper met X-Api-Key
+│   ├── lib/api.js          Fetch-wrapper met sessie en CSRF
 │   ├── composables/
 │   └── views/
 ├── public/                 Static assets (bevat root .htaccess)
@@ -55,10 +55,13 @@ Open daarna [http://localhost:5173/](http://localhost:5173/).
 
 ## Environment setup
 
-1. Kopieer `.env.example` → `.env`, vul `VITE_API_KEY` in.
-2. Kopieer `api/config.example.php` → `api/config.php`, vul `API_KEY` in
-   (moet gelijk zijn aan `VITE_API_KEY`).
+1. Kopieer `.env.example` → `.env`.
+2. Kopieer `api/config.example.php` → `api/config.php`.
 3. `npm install` — installeert Vue, Vite, Tailwind, Vitest, concurrently.
+
+Bij de eerste API-call wordt lokaal gebruiker `admin` met wachtwoord `admin`
+aangemaakt. Deze development-bootstrap moet bij de eerste login verplicht
+worden gewijzigd.
 
 ## Development
 
@@ -89,10 +92,14 @@ Levert een complete `dist/` map op met:
 **Deploy-flow:**
 
 1. Upload de inhoud van `dist/` naar je webroot.
-2. Op de server: kopieer `api/config.example.php` naar `api/config.php` en
-   vul productie-credentials in. Zet `DB_DRIVER` op `'mysql'`.
-3. Zorg dat MySQL bereikbaar is met de opgegeven credentials.
-4. Test de API met `curl https://jouw-domein/api/`.
+2. Kopieer `api/config.example.php` naar een map **buiten de webroot** en stel
+   de servervariabele `APP_CONFIG_PATH` in op dat absolute bestandspad.
+3. Zet daarin `APP_ENV` op `'production'`, `SESSION_COOKIE_SECURE` op `true` en kies
+   een uniek bootstrap-wachtwoord van minimaal 12 tekens.
+4. Zet `DB_DRIVER` op `'mysql'`, vul de productiecredentials in en beperk
+   het configuratiebestand tot de webservergebruiker (`chmod 600`).
+5. Serveer de applicatie uitsluitend via HTTPS en test
+   `curl https://jouw-domein/api/`.
 
 ## Database
 
@@ -105,8 +112,8 @@ niet bestaat.
 `DB_DRIVER = 'mysql'`. Vul `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` in.
 
 **Schema:**
-Ontwerp je schema in `db/schema.sql`. Zie sectie "SQL portabiliteit"
-hieronder voor tips.
+De API maakt automatisch de portable tabellen `users` en
+`auth_login_attempts` aan. Ontwerp aanvullende schema's in `db/schema.sql`.
 
 ### SQL portabiliteit — SQLite ↔ MySQL
 
@@ -128,17 +135,22 @@ Een handvol verschillen om rekening mee te houden als je met beide werkt:
 Alternatief: houd twee schema-bestanden (`db/schema.sqlite.sql`,
 `db/schema.mysql.sql`) synchroon.
 
-## Auth (nog niet geactiveerd)
+## Authenticatie en gebruikers
 
-De boilerplate levert alleen **X-Api-Key** authenticatie (`requireApiKey()` in
-PHP + auto-header in `src/lib/api.js`). Voor user-level auth (Supabase, Firebase,
-session) staan er drie hook-points klaar met TODO's:
+De boilerplate bevat server-side PHP-sessies met:
 
-1. `src/router/index.js` — commented-out `requireAuth` guard
-2. `src/views/LoginView.vue` — skeleton met provider-buttons
-3. `api/helpers/auth.php` — commented-out `requireUser()` stub
+- HttpOnly-, SameSite- en in productie Secure-cookies
+- CSRF-validatie op alle mutaties
+- `password_hash()`/`password_verify()` en verplichte eerste wijziging
+- rate limiting op mislukte logins
+- server-side rolcontrole voor `/api/admin/*`
 
-Zie `CLAUDE.md` sectie "Auth toevoegen" voor concrete voorbeelden.
+Ga naar `/login` om in te loggen. Admins beheren gebruikers via
+`/admin/users`. Nieuwe gebruikers krijgen een tijdelijk wachtwoord van minimaal
+12 tekens en moeten dit bij de eerste login wijzigen.
+
+De Vue-routerguard is alleen navigatiegemak; iedere beveiligde API-handler moet
+altijd `requireUser($db)` of `requireAdmin($db)` aanroepen.
 
 ## Multi-tool uitbreiding
 
@@ -150,6 +162,7 @@ zie `CLAUDE.md` sectie "Multi-tool patroon".
 ```bash
 npm run test          # Vitest watch mode
 npm run test -- --run # Éénmalige run (CI)
+npm run test:ci       # Frontend + PHP-authtests
 ```
 
 Voorbeeld test in `tests/lib/api.spec.js` — kopieer 't patroon voor je eigen
@@ -157,11 +170,11 @@ composables.
 
 ## Troubleshooting
 
-**"missing_config" bij API-calls:**
+**"server_not_configured" bij API-calls:**
 `api/config.php` bestaat niet. Kopieer `api/config.example.php`.
 
-**"invalid_api_key":**
-`VITE_API_KEY` in `.env` en `API_KEY` in `api/config.php` moeten identiek zijn.
+**Na vijf foutieve logins volgt HTTP 429:**
+Wacht 15 minuten. De teller staat in de tabel `auth_login_attempts`.
 
 **PHP built-in server geeft "404 Not Found" op assets:**
 `php -S localhost:8000 api/index.php` — de tweede argument is een router-script,
@@ -170,4 +183,4 @@ Vite's dev-server, niet direct via PHP.
 
 **SQLite-fouten "unable to open database file":**
 Directory `api/storage/` bestaat niet of is niet writable. Fix: `mkdir -p
-api/storage && chmod 755 api/storage`.
+api/storage && chmod 700 api/storage`.

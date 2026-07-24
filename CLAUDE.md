@@ -25,10 +25,10 @@ Vitest · PHP 8 flat router · PDO (SQLite lokaal, MySQL productie).
 Vue frontend (src/)
   └─ fetch('/api/...') via src/lib/api.js
       └─ Vite proxy (dev) of Apache rewrite (prod)
-          └─ api/index.php  ← flat router met stages
-              ├─ Stage 1: publieke endpoints (health, share links, ...)
-              ├─ Stage 2: requireApiKey() gate
-              └─ Stage 3: beschermde endpoints
+          └─ api/index.php  ← flat router
+              ├─ publieke endpoints (health, login, auth/me)
+              ├─ requireUser($db) voor ingelogde gebruikers
+              └─ requireAdmin($db) voor beheer
                   └─ elk endpoint = 1 handler in api/handlers/
 ```
 
@@ -64,8 +64,8 @@ Vue frontend (src/)
 
 ### Frontend fetch
 
-**ALTIJD** via `src/lib/api.js` — nooit bare `fetch()`. Reden: `X-Api-Key`
-wordt daar automatisch gezet, fouten uniform gethrowd.
+**ALTIJD** via `src/lib/api.js` — nooit bare `fetch()`. Reden: sessiecookies,
+CSRF-headers en fouten worden daar uniform afgehandeld.
 
 ### PHP database access
 
@@ -94,80 +94,19 @@ Bij ontwerp van schema's — beide moeten werken.
 
 Zie `README.md` sectie "SQL portabiliteit" voor de complete tabel.
 
-## Auth toevoegen
+## Auth
 
-Drie hook-points liggen klaar:
+Auth is standaard actief via PHP-sessies. Regels:
 
-### 1. Router guard — `src/router/index.js`
-
-Uncomment de `requireAuth` functie en implementeer 'm. Bijvoorbeeld
-Supabase:
-
-```js
-import { supabase } from '../lib/supabase.js'
-
-export async function requireAuth(to, from, next) {
-    const { data } = await supabase.auth.getSession()
-    if (!data.session) {
-        return next({ path: '/login', query: { redirect: to.fullPath } })
-    }
-    next()
-}
-```
-
-Voeg dan `beforeEnter: requireAuth` toe aan de routes die je wilt
-beschermen.
-
-### 2. LoginView — `src/views/LoginView.vue`
-
-Implementeer de `loginWithProvider(provider)` functie. Bijvoorbeeld
-Supabase OAuth:
-
-```js
-async function loginWithProvider(provider) {
-    await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: window.location.origin + '/' },
-    })
-}
-```
-
-### 3. PHP requireUser() — `api/helpers/auth.php`
-
-Uncomment en implementeer. Bijvoorbeeld voor Supabase (haalt user op via
-Supabase's `/auth/v1/user` endpoint met bearer token):
-
-```php
-function requireUser(): array {
-    $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-    if (!preg_match('/^Bearer\s+(.+)$/', $auth, $m)) {
-        errorResponse('unauthorized', 401);
-    }
-    $token = $m[1];
-
-    $ch = curl_init(SUPABASE_URL . '/auth/v1/user');
-    curl_setopt_array($ch, [
-        CURLOPT_HTTPHEADER     => [
-            'apikey: ' . SUPABASE_SERVICE_KEY,
-            'Authorization: Bearer ' . $token,
-        ],
-        CURLOPT_RETURNTRANSFER => true,
-    ]);
-    $body = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($status !== 200) errorResponse('unauthorized', 401);
-    return json_decode($body, true);
-}
-```
-
-Roep 'm dan aan in beschermde handlers:
-
-```php
-$user = requireUser();
-$userId = $user['id'];
-```
+- Gebruik `requireUser($db)` in iedere ingelogde handler.
+- Gebruik `requireAdmin($db)` in iedere adminhandler.
+- Roep na `requireUser`/`requireAdmin` ook `requireCsrfToken()` aan bij
+  POST-, PUT-, PATCH- en DELETE-mutaties.
+- Vertrouw nooit alleen op Vue-routermeta; dat is geen serverbeveiliging.
+- Nieuwe wachtwoorden hebben 12–200 tekens en worden uitsluitend met
+  `password_hash()` opgeslagen.
+- De bootstrap `admin`/`admin` is alleen voor development en vereist direct een
+  wachtwoordwijziging. Productieconfiguratie weigert deze combinatie.
 
 ## Multi-tool patroon (optioneel)
 
@@ -203,8 +142,8 @@ Als deze app een dashboard met meerdere tools wordt (à la `inventus-tools`):
   MySQL = wat prod-hosting nu eenmaal is. `DB_DRIVER`-toggle is bewust simpel.
 - **Waarom `/api/` in `/dist/`?** Zodat `dist/` één deploy-artifact is —
   je uploadt het en klaar. Geen aparte deploy-stap voor de API.
-- **Waarom geen Supabase in baseline?** Elke app kiest zijn eigen auth. De
-  baseline moet auth-agnostisch zijn.
+- **Waarom PHP-sessies?** Ze houden credentials uit de browserbundle en bieden
+  zonder extra packages een kleine, server-side beveiligingsgrens.
 - **Waarom `concurrently`?** Vite en PHP zijn twee losse processen; één
   npm-script moet ze allebei starten. Alternatieven (Foreman, tmuxinator)
   voegen buiten-npm-tools toe — `concurrently` is een dev-dep en werkt overal.

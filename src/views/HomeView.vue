@@ -1,40 +1,47 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useApi } from '../composables/useApi.js'
+import { ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth.js'
 
-const appName = 'Boilerplate'
-const health = ref(null)
-const error = ref(null)
+const router = useRouter()
+const { user, logout } = useAuth()
+const error = ref('')
 
-const { apiGet } = useApi()
-
-onMounted(async () => {
+async function signOut() {
   try {
-    health.value = await apiGet('/')
-  } catch (e) {
-    error.value = e.message
+    await logout()
+    await router.replace('/login')
+  } catch {
+    error.value = 'Uitloggen is niet gelukt. Vernieuw de pagina en probeer opnieuw.'
   }
-})
+}
 </script>
 
 <template>
-  <main class="min-h-screen bg-slate-50 flex items-center justify-center p-8">
-    <div class="max-w-lg text-center space-y-4">
-      <h1 class="text-4xl font-bold text-slate-800">{{ appName }}</h1>
-      <p class="text-slate-600">Welkom bij je nieuwe app.</p>
+  <main class="min-h-screen bg-slate-50 p-8">
+    <div class="mx-auto max-w-3xl space-y-6">
+      <header class="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+        <div>
+          <h1 class="text-3xl font-bold text-slate-800">Boilerplate</h1>
+          <p class="mt-1 text-slate-600">
+            Ingelogd als <strong>{{ user.username }}</strong>
+          </p>
+        </div>
+        <button class="text-sm text-slate-700 underline" @click="signOut">Uitloggen</button>
+      </header>
 
-      <div v-if="health" class="text-sm text-slate-700 bg-white rounded p-4 shadow-sm">
-        <div>API status: <strong>{{ health.status }}</strong></div>
-        <div>DB driver: <strong>{{ health.driver }}</strong></div>
-      </div>
+      <section v-if="user.role === 'admin'" class="rounded-lg bg-white p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-slate-800">Beheer</h2>
+        <p class="mt-1 text-sm text-slate-500">Voeg gebruikers toe en beheer hun rollen.</p>
+        <RouterLink
+          to="/admin/users"
+          class="mt-4 inline-block rounded bg-slate-900 px-4 py-2 text-white"
+        >
+          Gebruikers beheren
+        </RouterLink>
+      </section>
 
-      <div v-else-if="error" class="text-sm text-red-600">
-        API-fout: {{ error }}
-      </div>
-
-      <p class="text-sm text-slate-500">
-        Zie <code class="bg-slate-200 px-1 rounded">README.md</code> voor volgende stappen.
-      </p>
+      <p v-if="error" role="alert" class="text-sm text-red-600">{{ error }}</p>
     </div>
   </main>
 </template>

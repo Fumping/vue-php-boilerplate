@@ -1,16 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { apiGet, apiPost } from '../../src/lib/api.js'
+import { apiGet, apiPost, setCsrfToken } from '../../src/lib/api.js'
 
 describe('lib/api', () => {
   beforeEach(() => {
     global.fetch = vi.fn()
+    setCsrfToken('')
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('apiGet sends X-Api-Key header and returns JSON body', async () => {
+  it('apiGet uses same-origin credentials without exposing a shared API key', async () => {
     global.fetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ hello: 'world' }), {
         status: 200,
@@ -22,7 +23,8 @@ describe('lib/api', () => {
 
     const [url, init] = global.fetch.mock.calls[0]
     expect(url).toBe('/api/hello')
-    expect(init.headers['X-Api-Key']).toBe('test-key')
+    expect(init.headers['X-Api-Key']).toBeUndefined()
+    expect(init.credentials).toBe('same-origin')
     expect(init.method).toBe('GET')
   })
 
@@ -39,6 +41,22 @@ describe('lib/api', () => {
     expect(init.method).toBe('POST')
     expect(init.body).toBe(JSON.stringify({ name: 'x' }))
     expect(init.headers['Content-Type']).toBe('application/json')
+  })
+
+  it('adds the CSRF token to state-changing requests only', async () => {
+    global.fetch.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+    setCsrfToken('csrf-test-token')
+
+    await apiGet('/items')
+    await apiPost('/items', { name: 'x' })
+
+    expect(global.fetch.mock.calls[0][1].headers['X-CSRF-Token']).toBeUndefined()
+    expect(global.fetch.mock.calls[1][1].headers['X-CSRF-Token']).toBe('csrf-test-token')
   })
 
   it('throws an Error with status and body on non-2xx', async () => {

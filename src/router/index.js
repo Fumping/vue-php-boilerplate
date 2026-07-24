@@ -1,21 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-
-// AUTH HOOK-POINT (commented-out door bewuste keuze).
-// Om auth aan te zetten:
-//   1. Implementeer de `requireAuth` guard hieronder (voorbeeld: check
-//      localStorage token, Supabase session, cookie, wat je maar wilt).
-//   2. Voeg `beforeEnter: requireAuth` toe aan de routes die je wilt
-//      beschermen.
-//   3. Overweeg ook een globale `router.beforeEach` als je 't voor alle
-//      routes wilt behalve /login.
-//
-// export async function requireAuth(to, from, next) {
-//   const authenticated = false // TODO: echte auth-check
-//   if (!authenticated) {
-//     return next({ path: '/login', query: { redirect: to.fullPath } })
-//   }
-//   next()
-// }
+import { useAuth } from '../composables/useAuth.js'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,14 +7,53 @@ const router = createRouter({
     {
       path: '/login',
       component: () => import('../views/LoginView.vue'),
-      meta: { title: 'Inloggen' },
+      meta: { title: 'Inloggen', guestOnly: true },
+    },
+    {
+      path: '/change-password',
+      component: () => import('../views/ChangePasswordView.vue'),
+      meta: { title: 'Wachtwoord wijzigen', requiresAuth: true, allowPasswordChange: true },
+    },
+    {
+      path: '/admin/users',
+      component: () => import('../views/AdminUsersView.vue'),
+      meta: { title: 'Gebruikers', requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/',
       component: () => import('../views/HomeView.vue'),
-      meta: { title: 'Home' },
+      meta: { title: 'Home', requiresAuth: true },
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/',
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const { user, loadUser } = useAuth()
+  await loadUser()
+
+  if (to.meta.guestOnly && user.value) {
+    return user.value.mustChangePassword ? '/change-password' : '/'
+  }
+  if (to.meta.requiresAuth && !user.value) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (
+    user.value?.mustChangePassword
+    && to.path !== '/change-password'
+    && !to.meta.guestOnly
+  ) {
+    return '/change-password'
+  }
+  if (to.path === '/change-password' && user.value && !user.value.mustChangePassword) {
+    return '/'
+  }
+  if (to.meta.requiresAdmin && user.value?.role !== 'admin') {
+    return '/'
+  }
 })
 
 router.afterEach((to) => {

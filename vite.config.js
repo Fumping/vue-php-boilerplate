@@ -8,17 +8,22 @@ export default defineConfig({
     copyApiPlugin({
       src: 'api',
       dest: 'dist/api',
+      include: [
+        '.htaccess',
+        'index.php',
+        'config.example.php',
+        'handlers/**/*.php',
+        'helpers/**/*.php',
+        'storage/.htaccess',
+      ],
       exclude: [
         'config.php',
         'config.local.php',
-        'storage/db.sqlite',
-        'storage/db.sqlite-shm',
-        'storage/db.sqlite-wal',
-        'storage/db.sqlite-journal',
+        'storage/**/*.sqlite*',
         'storage/tmp/**',
-        '**/.env',
-        '**/.env.local',
+        '**/.env*',
         '**/*.log',
+        '**/*.bak',
       ],
     }),
   ],
@@ -37,7 +42,6 @@ export default defineConfig({
     globals: true,
     env: {
       VITE_API_URL: '/api',
-      VITE_API_KEY: 'test-key',
     },
   },
 })

@@ -3,15 +3,17 @@ dist/
 dist-ssr/
 .env
 .env.local
+.env.*.local
+api/.env*
 .DS_Store
 .superpowers/
 .worktrees/
 
 # Local secrets & data
 api/config.php
-api/storage/db.sqlite
-api/storage/db.sqlite-shm
-api/storage/db.sqlite-wal
+api/storage/*
+!api/storage/.gitkeep
+!api/storage/.htaccess
 api/storage/tmp/
 
 # Editor

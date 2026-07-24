@@ -44,9 +44,6 @@ if [[ -z "$APP_NAME" ]]; then
   APP_NAME="${APP_NAME:-$DEFAULT_NAME}"
 fi
 
-read -r -p "Verse API_KEY genereren via openssl? [Y/n]: " GEN_KEY
-GEN_KEY="${GEN_KEY:-Y}"
-
 read -r -p "SQLite-DB nu aanmaken (empty)? [Y/n]: " MAKE_DB
 MAKE_DB="${MAKE_DB:-Y}"
 
@@ -84,24 +81,10 @@ fi
 
 "${SED_INPLACE[@]}" "s|{{APP_NAME}}|$NPM_NAME|g" "$TARGET_DIR/package.json"
 "${SED_INPLACE[@]}" "s|{{APP_NAME}}|$APP_NAME|g" "$TARGET_DIR/index.html"
-# Regenerate package-lock.json op eerste `npm install` in de nieuwe app
-rm -f "$TARGET_DIR/package-lock.json"
-
-# ─── API_KEY genereren ───────────────────────────────────────────
-if [[ "$GEN_KEY" =~ ^[Yy]$ ]]; then
-  if command -v openssl >/dev/null 2>&1; then
-    NEW_KEY="$(openssl rand -hex 24)"
-  else
-    NEW_KEY="$(head -c 24 /dev/urandom | xxd -p)"
-  fi
-  echo "→ Genereer verse API_KEY"
-  cp "$TARGET_DIR/api/config.example.php" "$TARGET_DIR/api/config.php"
-  "${SED_INPLACE[@]}" "s|define('API_KEY', 'change-me');|define('API_KEY', '$NEW_KEY');|" \
-    "$TARGET_DIR/api/config.php"
-  cp "$TARGET_DIR/.env.example" "$TARGET_DIR/.env"
-  "${SED_INPLACE[@]}" "s|VITE_API_KEY=change-me|VITE_API_KEY=$NEW_KEY|" \
-    "$TARGET_DIR/.env"
-fi
+# ─── Lokale configuratie ─────────────────────────────────────────
+cp "$TARGET_DIR/api/config.example.php" "$TARGET_DIR/api/config.php"
+chmod 600 "$TARGET_DIR/api/config.php"
+cp "$TARGET_DIR/.env.example" "$TARGET_DIR/.env"
 
 # ─── SQLite DB ───────────────────────────────────────────────────
 if [[ "$MAKE_DB" =~ ^[Yy]$ ]]; then

@@ -1,19 +1,28 @@
 const API_URL = (import.meta.env.VITE_API_URL ?? '/api').replace(/\/$/, '')
-const API_KEY = import.meta.env.VITE_API_KEY ?? ''
 
-function headers(extra = {}) {
-  return {
-    'Content-Type': 'application/json',
-    'X-Api-Key': API_KEY,
-    ...extra,
+let csrfToken = ''
+
+export function setCsrfToken(token) {
+  csrfToken = typeof token === 'string' ? token : ''
+}
+
+function headers(init) {
+  const result = { ...(init.headers ?? {}) }
+  if (init.body !== undefined) {
+    result['Content-Type'] = 'application/json'
   }
+  if (csrfToken && !['GET', 'HEAD'].includes(init.method ?? 'GET')) {
+    result['X-CSRF-Token'] = csrfToken
+  }
+  return result
 }
 
 async function request(path, init = {}) {
   const url = `${API_URL}${path}`
   const res = await fetch(url, {
+    credentials: 'same-origin',
     ...init,
-    headers: { ...headers(), ...(init.headers ?? {}) },
+    headers: headers(init),
   })
 
   if (res.status === 204) return null
@@ -38,7 +47,7 @@ export function apiGet(path) {
   return request(path, { method: 'GET' })
 }
 
-export function apiPost(path, body) {
+export function apiPost(path, body = {}) {
   return request(path, { method: 'POST', body: JSON.stringify(body) })
 }
 
