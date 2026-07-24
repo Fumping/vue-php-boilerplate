@@ -9,6 +9,14 @@
 
 set -euo pipefail
 
+# ─── Preflight ────────────────────────────────────────────────────
+for tool in php node npm rsync; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "Fout: '$tool' is niet geïnstalleerd. Installeer 't eerst." >&2
+    exit 1
+  fi
+done
+
 # ─── Bepaal boilerplate root ─────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOILER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -55,6 +63,10 @@ rsync -a \
   --exclude '.git' \
   --exclude '.superpowers' \
   --exclude '.worktrees' \
+  --exclude '.env' \
+  --exclude '.env.local' \
+  --exclude '.DS_Store' \
+  --exclude '*.log' \
   --exclude 'api/config.php' \
   --exclude 'api/storage/db.sqlite*' \
   "$BOILER_ROOT/" "$TARGET_DIR/"
@@ -72,6 +84,8 @@ fi
 
 "${SED_INPLACE[@]}" "s|{{APP_NAME}}|$NPM_NAME|g" "$TARGET_DIR/package.json"
 "${SED_INPLACE[@]}" "s|{{APP_NAME}}|$APP_NAME|g" "$TARGET_DIR/index.html"
+# Regenerate package-lock.json op eerste `npm install` in de nieuwe app
+rm -f "$TARGET_DIR/package-lock.json"
 
 # ─── API_KEY genereren ───────────────────────────────────────────
 if [[ "$GEN_KEY" =~ ^[Yy]$ ]]; then

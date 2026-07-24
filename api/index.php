@@ -32,7 +32,7 @@ $path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
 // Strip leading /api zodat /api/health en /health beide werken
 // (Vite proxy stuurt met prefix door; Apache rewrite ook)
-$path = preg_replace('#^/api#', '', $path) ?: '/';
+$path = preg_replace('#^/api(?=/|$)#', '', $path) ?: '/';
 
 // ─── Stage 1: publieke endpoints (voor requireApiKey) ─────────────
 if ($method === 'GET' && $path === '/') {

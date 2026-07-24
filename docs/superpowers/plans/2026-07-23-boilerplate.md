@@ -467,6 +467,11 @@ const appName = 'Boilerplate'
 
 ```vue
 <script setup>
+// AUTH HOOK-POINT.
+// Deze view is een skeleton. Implementeer `loginWithProvider(provider)`
+// hieronder om echte auth aan te haken. Zie CLAUDE.md sectie
+// "Auth toevoegen" voor voorbeelden (Supabase, Firebase, session-based).
+
 function loginWithProvider(provider) {
   console.log('TODO: login met', provider)
 }
@@ -683,7 +688,7 @@ $path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
 // Strip leading /api zodat /api/health en /health beide werken
 // (Vite proxy stuurt met prefix door; Apache rewrite ook)
-$path = preg_replace('#^/api#', '', $path) ?: '/';
+$path = preg_replace('#^/api(?=/|$)#', '', $path) ?: '/';
 
 // ─── Stage 1: publieke endpoints (voor requireApiKey) ─────────────
 if ($method === 'GET' && $path === '/') {
@@ -1114,10 +1119,14 @@ export function copyApiPlugin(options = {}) {
   const dest = options.dest ?? 'dist/api'
   const exclude = options.exclude ?? [
     'config.php',
+    'config.local.php',
     'storage/db.sqlite',
     'storage/db.sqlite-shm',
     'storage/db.sqlite-wal',
+    'storage/db.sqlite-journal',
     'storage/tmp/**',
+    '**/.env',
+    '**/.env.local',
     '**/*.log',
   ]
 
@@ -1154,10 +1163,14 @@ export default defineConfig({
       dest: 'dist/api',
       exclude: [
         'config.php',
+        'config.local.php',
         'storage/db.sqlite',
         'storage/db.sqlite-shm',
         'storage/db.sqlite-wal',
+        'storage/db.sqlite-journal',
         'storage/tmp/**',
+        '**/.env',
+        '**/.env.local',
         '**/*.log',
       ],
     }),
@@ -1316,6 +1329,14 @@ git commit -m "feat: root .htaccess for SPA routing and API passthrough (via pub
 
 set -euo pipefail
 
+# ─── Preflight ────────────────────────────────────────────────────
+for tool in php node npm rsync; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "Fout: '$tool' is niet geïnstalleerd. Installeer 't eerst." >&2
+    exit 1
+  fi
+done
+
 # ─── Bepaal boilerplate root ─────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOILER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -1362,6 +1383,10 @@ rsync -a \
   --exclude '.git' \
   --exclude '.superpowers' \
   --exclude '.worktrees' \
+  --exclude '.env' \
+  --exclude '.env.local' \
+  --exclude '.DS_Store' \
+  --exclude '*.log' \
   --exclude 'api/config.php' \
   --exclude 'api/storage/db.sqlite*' \
   "$BOILER_ROOT/" "$TARGET_DIR/"
@@ -1379,6 +1404,8 @@ fi
 
 "${SED_INPLACE[@]}" "s|{{APP_NAME}}|$NPM_NAME|g" "$TARGET_DIR/package.json"
 "${SED_INPLACE[@]}" "s|{{APP_NAME}}|$APP_NAME|g" "$TARGET_DIR/index.html"
+# Regenerate package-lock.json op eerste `npm install` in de nieuwe app
+rm -f "$TARGET_DIR/package-lock.json"
 
 # ─── API_KEY genereren ───────────────────────────────────────────
 if [[ "$GEN_KEY" =~ ^[Yy]$ ]]; then

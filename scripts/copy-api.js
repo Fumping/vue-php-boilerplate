@@ -51,10 +51,14 @@ export function copyApiPlugin(options = {}) {
   const dest = options.dest ?? 'dist/api'
   const exclude = options.exclude ?? [
     'config.php',
+    'config.local.php',
     'storage/db.sqlite',
     'storage/db.sqlite-shm',
     'storage/db.sqlite-wal',
+    'storage/db.sqlite-journal',
     'storage/tmp/**',
+    '**/.env',
+    '**/.env.local',
     '**/*.log',
   ]
 

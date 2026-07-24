@@ -1,4 +1,9 @@
 <script setup>
+// AUTH HOOK-POINT.
+// Deze view is een skeleton. Implementeer `loginWithProvider(provider)`
+// hieronder om echte auth aan te haken. Zie CLAUDE.md sectie
+// "Auth toevoegen" voor voorbeelden (Supabase, Firebase, session-based).
+
 function loginWithProvider(provider) {
   console.log('TODO: login met', provider)
 }
