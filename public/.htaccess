@@ -1,0 +1,23 @@
+RewriteEngine On
+RewriteBase /
+
+# Bestaande bestanden/mappen direct serveren
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# /api/* wordt door api/.htaccess afgehandeld
+RewriteRule ^api/ - [L]
+
+# Al het overige naar de Vue SPA
+RewriteRule ^ index.html [L]
+
+# Cache-control voor gehashte assets (Vite output)
+<IfModule mod_headers.c>
+    <FilesMatch "\.(js|css|woff2?|png|jpe?g|svg|webp)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
