@@ -5,13 +5,13 @@ Vue 3 frontend, PHP 8 flat-router API in `/api/`, SQLite lokaal, MySQL in produc
 
 ## Snelle start
 
-Clone eerst de [Digital Driven Vue/PHP-boilerplate](https://github.com/digitaldriven/vue-php-boilerplate)
+Clone eerst de [Fumping Vue/PHP-boilerplate](https://github.com/Fumping/vue-php-boilerplate/tree/main)
 en laat het setupscript daaruit een zelfstandige applicatie met een nieuwe
 Git-history maken:
 
 ```bash
 # 1. Download de boilerplate
-git clone https://github.com/digitaldriven/vue-php-boilerplate.git
+git clone --branch main https://github.com/Fumping/vue-php-boilerplate.git
 cd vue-php-boilerplate
 
 # 2. Kopieer de boilerplate naar je nieuwe project
@@ -187,7 +187,7 @@ altijd `requireUser($db)` of `requireAdmin($db)` aanroepen.
 
 ## Multi-tool uitbreiding
 
-Voor een dashboard met meerdere tools onder één auth (zoals `inventus-tools`):
+Voor een dashboard met meerdere tools onder één auth:
 zie `CLAUDE.md` sectie "Multi-tool patroon".
 
 ## Testen

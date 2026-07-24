@@ -112,7 +112,7 @@ Auth is standaard actief via PHP-sessies. Regels:
 
 ## Multi-tool patroon (optioneel)
 
-Als deze app een dashboard met meerdere tools wordt (à la `inventus-tools`):
+Als deze app een dashboard met meerdere tools wordt:
 
 1. Maak `src/tools.js`:
    ```js
