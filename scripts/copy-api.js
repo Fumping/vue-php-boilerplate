@@ -59,6 +59,7 @@ export function copyApiPlugin(options = {}) {
     '.htaccess',
     'index.php',
     'config.example.php',
+    'cli/**/*.php',
     'handlers/**/*.php',
     'helpers/**/*.php',
     'storage/.htaccess',

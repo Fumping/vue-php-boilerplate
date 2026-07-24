@@ -1,13 +1,12 @@
 <?php
 // ─── Applicatie ───────────────────────────────────────────────────
 // Gebruik 'production' op de server. Productiemodus weigert onveilige
-// bootstrap- en cookie-instellingen.
+// config- en cookie-instellingen en voert nooit schema-DDL uit.
 define('APP_ENV', 'development');
 define('SESSION_COOKIE_SECURE', false);
 
-// Wordt alleen aangemaakt als de users-tabel nog leeg is. Iedere bootstrap-
-// gebruiker moet bij de eerste login direct een nieuw wachtwoord instellen.
-// Vervang dit wachtwoord vóór een productiedeploy door een lang, uniek geheim.
+// Alleen lokale SQLite-development gebruikt deze bootstrap. Productieadmins
+// maak je eenmalig aan met api/cli/bootstrap-admin.php.
 define('BOOTSTRAP_ADMIN_USERNAME', 'admin');
 define('BOOTSTRAP_ADMIN_PASSWORD', 'admin');
 
@@ -77,12 +76,6 @@ function validateAppConfig(string $configPath): void {
         }
         if (!SESSION_COOKIE_SECURE) {
             throw new RuntimeException('SESSION_COOKIE_SECURE moet aan staan in productie.');
-        }
-        if (
-            strlen(BOOTSTRAP_ADMIN_PASSWORD) < 12
-            || in_array(BOOTSTRAP_ADMIN_PASSWORD, ['admin', 'change-me', 'password'], true)
-        ) {
-            throw new RuntimeException('Configureer een sterk bootstrap-wachtwoord voor productie.');
         }
     }
 }

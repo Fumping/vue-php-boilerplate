@@ -20,21 +20,8 @@ if (findUserByUsername($db, $username) !== null) {
     errorResponse('username_taken', 409);
 }
 
-$id = bin2hex(random_bytes(16));
-$stmt = $db->prepare(
-    'INSERT INTO users (
-        id, username, password_hash, role, must_change_password
-    ) VALUES (
-        :id, :username, :password_hash, :role, 1
-    )'
-);
 try {
-    $stmt->execute([
-        'id' => $id,
-        'username' => $username,
-        'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-        'role' => $role,
-    ]);
+    $createdUser = createUser($db, $username, $password, $role);
 } catch (PDOException $exception) {
     if ((string) $exception->getCode() === '23000') {
         errorResponse('username_taken', 409);
@@ -42,5 +29,4 @@ try {
     throw $exception;
 }
 
-$createdUser = findUserById($db, $id);
 jsonResponse(publicUser($createdUser), 201);

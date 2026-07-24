@@ -4,7 +4,7 @@ RewriteBase /api/
 
 # Alleen de front controller is via HTTP bereikbaar. Implementatie, config en
 # runtime-data mogen nooit rechtstreeks als bestand worden geserveerd.
-RewriteRule ^(?:config(?:\..*)?\.php|handlers|helpers|storage)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:cli|config(?:\..*)?\.php|handlers|helpers|storage)(?:/|$) - [F,L,NC]
 RewriteRule ^(?:\.env|.*\.(?:sqlite(?:-(?:shm|wal|journal))?|bak|log))$ - [F,L,NC]
 
 # Stuur alle overige non-existent paden binnen /api/ naar index.php.

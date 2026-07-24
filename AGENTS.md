@@ -105,7 +105,9 @@ Auth is standaard actief via PHP-sessies:
 - Nieuwe wachtwoorden hebben 12–200 tekens en worden met `password_hash()`
   opgeslagen.
 - De bootstrap `admin`/`admin` is alleen voor development en vereist direct een
-  wachtwoordwijziging. Productieconfiguratie weigert deze combinatie.
+  wachtwoordwijziging.
+- Productie voert nooit schema-DDL uit. Importeer `db/schema.mysql.sql` en maak
+  de eerste admin via `api/cli/bootstrap-admin.php`.
 
 ## Multi-tool patroon (optioneel)
 

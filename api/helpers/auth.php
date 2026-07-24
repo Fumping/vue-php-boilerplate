@@ -215,17 +215,3 @@ function clearFailedLogins(PDO $db, string $ip): void {
 function loginRateLimitKey(string $ip, string $username): string {
     return hash('sha256', $ip . "\0" . normalizeUsername($username));
 }
-
-function isStrongPassword(string $password, string $username = ''): bool {
-    if (strlen($password) < 12 || strlen($password) > 200) {
-        return false;
-    }
-
-    $normalized = strtolower($password);
-    $common = ['passwordpassword', 'adminadminadmin', 'welkomwelkom', '123456789012'];
-    if (in_array($normalized, $common, true)) {
-        return false;
-    }
-
-    return $username === '' || $normalized !== str_repeat(normalizeUsername($username), 2);
-}

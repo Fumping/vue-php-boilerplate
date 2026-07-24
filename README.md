@@ -38,8 +38,12 @@ Open daarna [http://localhost:5173/](http://localhost:5173/).
 ├── api/                    PHP API
 │   ├── index.php           Flat router
 │   ├── config.example.php  DB, sessie- en bootstrapconfig
+│   ├── cli/                Eenmalige beheercommando's
 │   ├── handlers/           1 bestand per endpoint
 │   └── helpers/            auth.php, response.php
+├── db/
+│   ├── schema.sqlite.sql   Automatisch lokaal schema
+│   └── schema.mysql.sql    Eenmalig productie-importbestand
 ├── src/                    Vue frontend
 │   ├── main.js
 │   ├── router/index.js
@@ -91,14 +95,28 @@ Levert een complete `dist/` map op met:
 
 **Deploy-flow:**
 
-1. Upload de inhoud van `dist/` naar je webroot.
-2. Kopieer `api/config.example.php` naar een map **buiten de webroot** en stel
+1. Maak de productiedatabase aan en importeer het schema met een
+   databasebeheerder:
+   ```bash
+   mysql -h DB_HOST -u MIGRATION_USER -p DB_NAME < db/schema.mysql.sql
+   ```
+2. Geef de runtime-DB-gebruiker daarna uitsluitend `SELECT`, `INSERT`, `UPDATE`
+   en `DELETE` op deze database; geen `CREATE`, `ALTER` of `DROP`.
+3. Upload de inhoud van `dist/` naar je webroot.
+4. Kopieer `api/config.example.php` naar een map **buiten de webroot** en stel
    de servervariabele `APP_CONFIG_PATH` in op dat absolute bestandspad.
-3. Zet daarin `APP_ENV` op `'production'`, `SESSION_COOKIE_SECURE` op `true` en kies
-   een uniek bootstrap-wachtwoord van minimaal 12 tekens.
-4. Zet `DB_DRIVER` op `'mysql'`, vul de productiecredentials in en beperk
+5. Zet daarin `APP_ENV` op `'production'`, `SESSION_COOKIE_SECURE` op `true`,
+   `DB_DRIVER` op `'mysql'` en vul de runtimecredentials in. Beperk
    het configuratiebestand tot de webservergebruiker (`chmod 600`).
-5. Serveer de applicatie uitsluitend via HTTPS en test
+6. Maak de eerste productieadmin eenmalig aan zonder het wachtwoord in SQL of
+   shellgeschiedenis op te slaan:
+   ```bash
+   read -s ADMIN_PASSWORD
+   export ADMIN_PASSWORD
+   APP_CONFIG_PATH=/veilig/pad/api.php php dist/api/cli/bootstrap-admin.php admin
+   unset ADMIN_PASSWORD
+   ```
+7. Serveer de applicatie uitsluitend via HTTPS en test
    `curl https://jouw-domein/api/`.
 
 ## Database
@@ -109,11 +127,14 @@ Levert een complete `dist/` map op met:
 niet bestaat.
 
 **Productie (MySQL):**
-`DB_DRIVER = 'mysql'`. Vul `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS` in.
+Importeer `db/schema.mysql.sql` vóór de eerste API-call. De API voert in
+productie geen `CREATE` of `ALTER` uit en weigert te starten bij een ontbrekende
+of verkeerde schemaversie.
 
 **Schema:**
-De API maakt automatisch de portable tabellen `users` en
-`auth_login_attempts` aan. Ontwerp aanvullende schema's in `db/schema.sql`.
+`db/schema.sqlite.sql` is voor lokale ontwikkeling; `db/schema.mysql.sql` voor
+productie. Verhoog bij latere migraties ook `DATABASE_SCHEMA_VERSION` in
+`api/helpers/database.php`.
 
 ### SQL portabiliteit — SQLite ↔ MySQL
 
@@ -172,6 +193,10 @@ composables.
 
 **"server_not_configured" bij API-calls:**
 `api/config.php` bestaat niet. Kopieer `api/config.example.php`.
+
+**"Database-schema ontbreekt" in productie:**
+Importeer `db/schema.mysql.sql` met een migratiegebruiker. Geef de
+runtimegebruiker geen DDL-rechten.
 
 **Na vijf foutieve logins volgt HTTP 429:**
 Wacht 15 minuten. De teller staat in de tabel `auth_login_attempts`.

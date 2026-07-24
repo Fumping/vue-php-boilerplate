@@ -12,6 +12,7 @@ export default defineConfig({
         '.htaccess',
         'index.php',
         'config.example.php',
+        'cli/**/*.php',
         'handlers/**/*.php',
         'helpers/**/*.php',
         'storage/.htaccess',

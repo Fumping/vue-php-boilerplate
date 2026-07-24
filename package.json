@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "test:ci": "vitest --run && php tests/api/auth.spec.php"
+    "test:ci": "vitest --run && php tests/api/auth.spec.php && php tests/api/production-schema.spec.php"
   },
   "dependencies": {
     "vue": "^3.5.30",
