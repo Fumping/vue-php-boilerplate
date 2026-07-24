@@ -11,9 +11,11 @@ function matchesGlob(pathPosix, pattern) {
     '^' +
     pattern
       .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      .replace(/\*\*/g, '::DOUBLE::')
+      .replace(/\*\*\//g, '::GLOBSTAR_SLASH::')
+      .replace(/\*\*/g, '::GLOBSTAR::')
       .replace(/\*/g, '[^/]*')
-      .replace(/::DOUBLE::/g, '.*') +
+      .replace(/::GLOBSTAR_SLASH::/g, '(?:.*/)?')
+      .replace(/::GLOBSTAR::/g, '.*') +
     '$'
   )
   return re.test(pathPosix)
