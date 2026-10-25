@@ -105,6 +105,17 @@ Levert een complete `dist/` map op met:
 - `api/` (PHP-bestanden, zonder `config.php` of SQLite-data)
 - `.htaccess` (SPA-routing + API passthrough)
 
+**CI/CD (GitHub Actions):**
+
+- `.github/workflows/ci.yml` draait op elke pull request: `php -l` en de
+  API-tests op PHP 8.2 en 8.4, Vitest, `npm run build` en een check dat
+  `dist/` geen `config.php`, SQLite-data, `.env` of logs bevat.
+- `.github/workflows/release.yml` draait bij elke push naar `main` (of
+  handmatig): eerst de volledige CI, daarna wordt `dist/` gebouwd en als
+  artifact `dist-<sha>` gepubliceerd (30 dagen bewaard, inclusief
+  `.htaccess` en `BUILD_INFO.txt`). Download het onder Actions → run →
+  Artifacts en upload de inhoud naar je webroot (stap 3 hieronder).
+
 **Deploy-flow:**
 
 1. Maak de productiedatabase aan en importeer het schema met een
