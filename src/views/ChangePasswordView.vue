@@ -28,9 +28,11 @@ async function submit() {
     await changePassword(currentPassword.value, newPassword.value)
     await router.replace('/')
   } catch (e) {
-    error.value = e.message === 'invalid_current_password'
-      ? 'The current password is incorrect.'
-      : 'The password could not be changed.'
+    const messages = {
+      invalid_current_password: 'The current password is incorrect.',
+      too_many_attempts: 'Too many attempts. Try again in a few minutes.',
+    }
+    error.value = messages[e.message] ?? 'The password could not be changed.'
   } finally {
     submitting.value = false
   }

@@ -5,6 +5,7 @@ const LOGIN_BLOCK_SECONDS = 900;
 const LOGIN_MAX_ATTEMPTS_PER_IP_USERNAME = 5;
 const LOGIN_MAX_ATTEMPTS_PER_IP = 30;
 const LOGIN_MAX_ATTEMPTS_PER_USERNAME = 50;
+const PASSWORD_CHANGE_MAX_ATTEMPTS = 5;
 
 // Salt and hash of a random password. loginDummyPasswordHash() prefixes the
 // runtime's default bcrypt cost, so unknown users cost as much as existing
@@ -264,4 +265,32 @@ function recordSuccessfulLogin(PDO $db, string $ip, string $username, ?int $now 
     );
     $refund->execute(['ip' => $ipKey, 'now' => $now]);
     $refund->execute(['ip' => $userKey, 'now' => $now]);
+}
+
+function passwordChangeRateLimitKey(string $userId): string {
+    return hash('sha256', "change-password\0" . $userId);
+}
+
+/**
+ * Limits guessing the current password with a stolen session. Every attempt
+ * counts; a successful change clears the bucket.
+ */
+function assertPasswordChangeAllowed(PDO $db, string $userId, ?int $now = null): void {
+    $now ??= time();
+    pruneLoginAttempts($db, $now);
+
+    $retryAfter = consumeLoginAttempt(
+        $db,
+        passwordChangeRateLimitKey($userId),
+        PASSWORD_CHANGE_MAX_ATTEMPTS,
+        $now
+    );
+    if ($retryAfter > 0) {
+        errorResponse('too_many_attempts', 429, ['retryAfter' => $retryAfter]);
+    }
+}
+
+function clearPasswordChangeAttempts(PDO $db, string $userId): void {
+    $stmt = $db->prepare('DELETE FROM auth_login_attempts WHERE ip = :ip');
+    $stmt->execute(['ip' => passwordChangeRateLimitKey($userId)]);
 }

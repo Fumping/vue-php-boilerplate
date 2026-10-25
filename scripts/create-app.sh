@@ -53,19 +53,24 @@ DO_GIT="${DO_GIT:-Y}"
 # ─── Copy ───────────────────────────────────────────────────────
 echo "→ Copying $BOILER_ROOT → $TARGET_DIR"
 mkdir -p "$TARGET_DIR"
-# Copy everything except node_modules, dist, .git, .superpowers, api/config.php, api/storage/db.sqlite*
+# Copy everything except build output, git data, local config/secrets (.env*,
+# api/config*.php) and runtime data in api/storage/. The new app commits
+# everything that is copied, so nothing secret may come along.
 rsync -a \
   --exclude 'node_modules' \
   --exclude 'dist' \
   --exclude '.git' \
   --exclude '.superpowers' \
   --exclude '.worktrees' \
-  --exclude '.env' \
-  --exclude '.env.local' \
+  --include '/.env.example' \
+  --exclude '.env*' \
   --exclude '.DS_Store' \
   --exclude '*.log' \
-  --exclude 'api/config.php' \
-  --exclude 'api/storage/db.sqlite*' \
+  --include '/api/config.example.php' \
+  --exclude '/api/config*.php' \
+  --include '/api/storage/.htaccess' \
+  --include '/api/storage/.gitkeep' \
+  --exclude '/api/storage/*' \
   "$BOILER_ROOT/" "$TARGET_DIR/"
 
 # ─── Placeholder replacement ────────────────────────────────────

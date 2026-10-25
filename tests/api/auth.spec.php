@@ -8,6 +8,7 @@ define('BOOTSTRAP_ADMIN_PASSWORD', 'admin');
 
 require __DIR__ . '/../../api/helpers/database.php';
 require __DIR__ . '/../../api/helpers/auth.php';
+require __DIR__ . '/../../api/helpers/request.php';
 
 function assertTest(bool $condition, string $message): void {
     if (!$condition) {
@@ -161,6 +162,20 @@ assertTest(
 assertTest(
     !isStrongPassword(str_repeat('x', 60) . 'Long-Suffix-1', 'tester'),
     'Passwords longer than 72 bytes must be rejected (bcrypt truncates them).'
+);
+
+assertTest(
+    rateLimitIp('2001:db8:1:2:aaaa::1') === rateLimitIp('2001:db8:1:2:ffff::9'),
+    'IPv6 addresses in one /64 must share a rate-limit bucket.'
+);
+assertTest(
+    rateLimitIp('2001:db8:1:2::1') !== rateLimitIp('2001:db8:1:3::1'),
+    'Different IPv6 /64 networks must get separate buckets.'
+);
+assertTest(rateLimitIp('203.0.113.9') === '203.0.113.9', 'IPv4 addresses must stay unchanged.');
+assertTest(
+    rateLimitIp('::ffff:203.0.113.9') !== rateLimitIp('::ffff:203.0.113.10'),
+    'IPv4-mapped IPv6 addresses must not be grouped into one bucket.'
 );
 
 echo "PHP auth tests passed\n";

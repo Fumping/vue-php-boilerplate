@@ -105,7 +105,7 @@ Apps created before boilerplate `v1.0.0` miss the login hardening. Check
 | Pruning of expired attempt rows | `function pruneLoginAttempts` |
 | Constant-cost login for unknown usernames | `function loginDummyPasswordHash` |
 
-- **All four present:** skip this phase.
+- **All four present:** skip to phase 1b.
 - **No `api/helpers/auth.php` at all** (app predates authentication): **STOP**.
   Adding authentication is a feature, not an upgrade, so ask the user.
 - **Otherwise**, port the missing parts from the reference:
@@ -139,6 +139,38 @@ Apps created before boilerplate `v1.0.0` miss the login hardening. Check
   If PHP 8.2 or 8.3 is available, run the tests there as well: older PHP uses
   bcrypt cost 10 and newer PHP cost 12, and the dummy-hash test covers both.
 - **Commit:** `fix: port login rate limiting and timing hardening from boilerplate v1.0.0`
+
+### Phase 1b: v2 security additions (always check)
+
+Boilerplate v2 adds three more fixes on top of v1.0.0. Port each one that is
+missing, from the boilerplate's `main` branch (or the `migration` branch until
+v2 is released):
+
+| Check | Present when |
+|---|---|
+| Passwords capped at 72 bytes (bcrypt ignores the rest) | `isStrongPassword()` in `api/helpers/database.php` rejects `strlen($password) > 72` |
+| IPv6 clients rate-limited per /64 | `api/helpers/request.php` has `function rateLimitIp` and `clientIp()` uses it |
+| Change-password guessing limit | `api/helpers/auth.php` has `function assertPasswordChangeAllowed`, called in `auth-change-password.php` after `requireJsonBody()`, and `clearPasswordChangeAttempts()` after a successful update |
+
+1. **72-byte cap:** change the upper bound in `isStrongPassword()` from 200 to
+   72 and set `maxlength="72"` on password inputs in the app's views. Existing
+   longer passwords keep working at login; only new passwords are checked. If
+   the app documents a different maximum, update that text too.
+2. **IPv6 /64:** copy `rateLimitIp()` and the new `clientIp()` body. If the app
+   reads the client IP from a proxy header instead of `REMOTE_ADDR`, **STOP**
+   and ask the user; pass that value through `rateLimitIp()` instead.
+3. **Change-password limit:** copy `PASSWORD_CHANGE_MAX_ATTEMPTS`,
+   `passwordChangeRateLimitKey`, `assertPasswordChangeAllowed` and
+   `clearPasswordChangeAttempts`, add the two calls to the handler, and map the
+   `too_many_attempts` error to a message in the change-password view.
+4. Port the matching tests (`rateLimitIp` assertions and the 72-byte test) to
+   `tests/api/auth.spec.php`, which now also requires `api/helpers/request.php`.
+5. If the app still has `scripts/create-app.sh`, copy its rsync exclude list:
+   it now skips every `.env*` except `.env.example`, `api/config*.php` except
+   the example, and all of `api/storage/` except `.htaccess` and `.gitkeep`.
+
+- **Verify:** `php -l` on the changed files and `php tests/api/auth.spec.php`.
+- **Commit:** `fix: port boilerplate v2 security additions`
 
 ---
 

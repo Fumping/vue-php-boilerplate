@@ -30,6 +30,17 @@ function requireJsonBody(int $maxBytes = 16384): array {
 }
 
 function clientIp(): string {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    return rateLimitIp($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+}
+
+/**
+ * One client usually owns a whole IPv6 /64, so rate limiting per full IPv6
+ * address would give an attacker billions of fresh buckets. Group by /64.
+ */
+function rateLimitIp(string $ip): string {
+    $packed = @inet_pton($ip);
+    if ($packed !== false && strlen($packed) === 16 && !str_starts_with($packed, str_repeat("\0", 10) . "\xff\xff")) {
+        return inet_ntop(substr($packed, 0, 8) . str_repeat("\0", 8)) . '/64';
+    }
     return substr($ip, 0, 64);
 }
