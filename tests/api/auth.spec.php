@@ -42,5 +42,23 @@ assertTest(
     loginRateLimitKey('127.0.0.1', 'admin') !== loginRateLimitKey('127.0.0.1', 'other'),
     'Rate limiting must apply per IP and username.'
 );
+assertTest(
+    !isStrongPassword(str_repeat('x', 60) . 'Long-Suffix-1', 'tester'),
+    'Passwords longer than 72 bytes must be rejected (bcrypt truncates them).'
+);
+
+$ipKey = loginIpRateLimitKey('203.0.113.9');
+for ($i = 1; $i < LOGIN_MAX_ATTEMPTS_PER_IP; $i++) {
+    recordFailedLogin($db, $ipKey, LOGIN_MAX_ATTEMPTS_PER_IP);
+}
+$blocked = (int) $db->query(
+    "SELECT blocked_until FROM auth_login_attempts WHERE ip = '$ipKey'"
+)->fetchColumn();
+assertTest($blocked === 0, 'The per-IP limit must not block below its threshold.');
+recordFailedLogin($db, $ipKey, LOGIN_MAX_ATTEMPTS_PER_IP);
+$blocked = (int) $db->query(
+    "SELECT blocked_until FROM auth_login_attempts WHERE ip = '$ipKey'"
+)->fetchColumn();
+assertTest($blocked > time(), 'The per-IP limit must block password spraying across usernames.');
 
 echo "PHP auth tests passed\n";

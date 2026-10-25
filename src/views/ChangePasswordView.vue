@@ -68,7 +68,7 @@ async function submit() {
           type="password"
           autocomplete="new-password"
           minlength="12"
-          maxlength="200"
+          maxlength="72"
           required
           class="w-full rounded border border-slate-300 px-3 py-2"
         />
@@ -81,7 +81,7 @@ async function submit() {
           type="password"
           autocomplete="new-password"
           minlength="12"
-          maxlength="200"
+          maxlength="72"
           required
           class="w-full rounded border border-slate-300 px-3 py-2"
         />

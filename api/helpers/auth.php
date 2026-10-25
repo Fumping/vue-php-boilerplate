@@ -2,6 +2,9 @@
 
 const LOGIN_WINDOW_SECONDS = 900;
 const LOGIN_MAX_ATTEMPTS = 5;
+// Extra per-IP budget across all usernames, so one IP cannot spray passwords
+// over many accounts while staying under the per-account limit.
+const LOGIN_MAX_ATTEMPTS_PER_IP = 20;
 const LOGIN_BLOCK_SECONDS = 900;
 
 function startSecureSession(): void {
@@ -160,7 +163,7 @@ function assertLoginAllowed(PDO $db, string $ip): void {
     }
 }
 
-function recordFailedLogin(PDO $db, string $ip): void {
+function recordFailedLogin(PDO $db, string $ip, int $maxAttempts = LOGIN_MAX_ATTEMPTS): void {
     $now = time();
     $stmt = $db->prepare(
         'SELECT attempts, window_started
@@ -190,7 +193,7 @@ function recordFailedLogin(PDO $db, string $ip): void {
     } else {
         $attempts++;
     }
-    $blockedUntil = $attempts >= LOGIN_MAX_ATTEMPTS ? $now + LOGIN_BLOCK_SECONDS : 0;
+    $blockedUntil = $attempts >= $maxAttempts ? $now + LOGIN_BLOCK_SECONDS : 0;
 
     $update = $db->prepare(
         'UPDATE auth_login_attempts
@@ -214,4 +217,8 @@ function clearFailedLogins(PDO $db, string $ip): void {
 
 function loginRateLimitKey(string $ip, string $username): string {
     return hash('sha256', $ip . "\0" . normalizeUsername($username));
+}
+
+function loginIpRateLimitKey(string $ip): string {
+    return hash('sha256', 'ip' . "\0" . $ip);
 }

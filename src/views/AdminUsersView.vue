@@ -83,7 +83,7 @@ async function createUser() {
             autocomplete="new-password"
             placeholder="temporary password"
             minlength="12"
-            maxlength="200"
+            maxlength="72"
             required
             class="rounded border border-slate-300 px-3 py-2"
           />

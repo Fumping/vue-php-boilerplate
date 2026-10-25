@@ -32,7 +32,7 @@ try {
     }
     if (!is_string($password) || !isStrongPassword($password, $username)) {
         throw new RuntimeException(
-            'Temporarily set ADMIN_PASSWORD to a unique password of 12 to 200 characters.'
+            'Temporarily set ADMIN_PASSWORD to a unique password of 12 to 72 bytes.'
         );
     }
 
