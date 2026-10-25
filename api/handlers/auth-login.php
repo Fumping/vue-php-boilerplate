@@ -3,19 +3,18 @@
 $body = requireJsonBody();
 $username = is_string($body['username'] ?? null) ? $body['username'] : '';
 $password = is_string($body['password'] ?? null) ? $body['password'] : '';
-$rateLimitKey = loginRateLimitKey(clientIp(), $username);
+$ip = clientIp();
 
-assertLoginAllowed($db, $rateLimitKey);
+assertLoginAllowed($db, $ip, $username);
 $user = findUserByUsername($db, $username);
-$hash = $user['password_hash'] ?? password_hash('dummy-password-value', PASSWORD_DEFAULT);
-$valid = $username !== '' && $password !== '' && password_verify($password, $hash);
+$valid = $username !== '' && $password !== ''
+    && password_verify($password, loginPasswordHash($user));
 
 if (!$valid || $user === null) {
-    recordFailedLogin($db, $rateLimitKey);
     errorResponse('invalid_credentials', 401);
 }
 
-clearFailedLogins($db, $rateLimitKey);
+recordSuccessfulLogin($db, $ip, $username);
 if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
     $stmt = $db->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
     $stmt->execute([
