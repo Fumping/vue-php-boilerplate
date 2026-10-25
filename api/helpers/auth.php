@@ -6,9 +6,10 @@ const LOGIN_MAX_ATTEMPTS_PER_IP_USERNAME = 5;
 const LOGIN_MAX_ATTEMPTS_PER_IP = 30;
 const LOGIN_MAX_ATTEMPTS_PER_USERNAME = 50;
 
-// Fixed bcrypt hash (random password) so unknown users cost as much as
-// existing ones: only password_verify(), no extra hash.
-const LOGIN_DUMMY_PASSWORD_HASH = '$2y$12$ENlVjhW77QzZlX9WCr8HmegfiRwBVAJyncnZTrzwaBlKpyZMupUau';
+// Salt and hash of a random password. loginDummyPasswordHash() prefixes the
+// runtime's default bcrypt cost, so unknown users cost as much as existing
+// ones (which are rehashed to that cost on login): only password_verify().
+const LOGIN_DUMMY_PASSWORD_HASH_BODY = 'ENlVjhW77QzZlX9WCr8HmegfiRwBVAJyncnZTrzwaBlKpyZMupUau';
 
 function startSecureSession(): void {
     if (session_status() === PHP_SESSION_ACTIVE) {
@@ -150,8 +151,12 @@ function logoutCurrentUser(): void {
     session_destroy();
 }
 
+function loginDummyPasswordHash(): string {
+    return sprintf('$2y$%02d$', PASSWORD_BCRYPT_DEFAULT_COST) . LOGIN_DUMMY_PASSWORD_HASH_BODY;
+}
+
 function loginPasswordHash(?array $user): string {
-    return $user['password_hash'] ?? LOGIN_DUMMY_PASSWORD_HASH;
+    return $user['password_hash'] ?? loginDummyPasswordHash();
 }
 
 /**
