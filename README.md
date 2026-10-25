@@ -201,7 +201,7 @@ must still call `requireUser($db)` or `requireAdmin($db)`.
 ## Multi-tool setup
 
 For a dashboard with several tools behind one login, see the "Multi-tool
-patroon" section in `CLAUDE.md`.
+pattern" section in `CLAUDE.md`.
 
 ## Testing
 
