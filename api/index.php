@@ -19,6 +19,7 @@ require __DIR__ . '/helpers/database.php';
 require __DIR__ . '/helpers/auth.php';
 
 validateAppConfig($configPath);
+assertDevelopmentClientIsLocal();
 $db = getDb();
 initializeDatabase($db);
 

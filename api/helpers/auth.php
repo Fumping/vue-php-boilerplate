@@ -5,11 +5,40 @@ const LOGIN_BLOCK_SECONDS = 900;
 const LOGIN_MAX_ATTEMPTS_PER_IP_USERNAME = 5;
 const LOGIN_MAX_ATTEMPTS_PER_IP = 30;
 const LOGIN_MAX_ATTEMPTS_PER_USERNAME = 50;
+const LOGIN_MAX_ATTEMPTS_PER_DEVICE = 10;
+const PASSWORD_CHANGE_MAX_ATTEMPTS = 5;
+
+const SESSION_IDLE_SECONDS = 7200;
+const SESSION_ABSOLUTE_SECONDS = 43200;
+const TRUSTED_DEVICE_SECONDS = 7776000;
 
 // Salt and hash of a random password. loginDummyPasswordHash() prefixes the
 // runtime's default bcrypt cost, so unknown users cost as much as existing
 // ones (which are rehashed to that cost on login): only password_verify().
 const LOGIN_DUMMY_PASSWORD_HASH_BODY = 'ENlVjhW77QzZlX9WCr8HmegfiRwBVAJyncnZTrzwaBlKpyZMupUau';
+
+/**
+ * With HTTPS the __Host- prefix makes browsers reject the cookie unless it is
+ * Secure, has path / and no Domain, so a subdomain cannot plant or override it.
+ */
+function authCookieName(string $name): string {
+    return SESSION_COOKIE_SECURE ? '__Host-' . $name : $name;
+}
+
+function authCookieOptions(int $expires): array {
+    return [
+        'expires' => $expires,
+        'path' => '/',
+        'secure' => SESSION_COOKIE_SECURE,
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ];
+}
+
+function hasSessionCookie(): bool {
+    $value = $_COOKIE[authCookieName('boilerplate_session')] ?? '';
+    return is_string($value) && $value !== '';
+}
 
 function startSecureSession(): void {
     if (session_status() === PHP_SESSION_ACTIVE) {
@@ -20,15 +49,12 @@ function startSecureSession(): void {
     ini_set('session.use_only_cookies', '1');
     ini_set('session.cookie_httponly', '1');
     ini_set('session.cookie_samesite', 'Strict');
+    ini_set('session.gc_maxlifetime', (string) SESSION_IDLE_SECONDS);
 
-    session_name('boilerplate_session');
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'secure' => SESSION_COOKIE_SECURE,
-        'httponly' => true,
-        'samesite' => 'Strict',
-    ]);
+    session_name(authCookieName('boilerplate_session'));
+    $options = authCookieOptions(0);
+    unset($options['expires']);
+    session_set_cookie_params(['lifetime' => 0] + $options);
     session_start();
 }
 
@@ -41,6 +67,9 @@ function csrfToken(): string {
 }
 
 function requireCsrfToken(): void {
+    if (session_status() !== PHP_SESSION_ACTIVE && !hasSessionCookie()) {
+        errorResponse('invalid_csrf_token', 403);
+    }
     startSecureSession();
     $provided = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     $expected = $_SESSION['csrf_token'] ?? '';
@@ -84,10 +113,23 @@ function publicUser(array $user): array {
     ];
 }
 
-function currentUser(PDO $db): ?array {
+function currentUser(PDO $db, ?int $now = null): ?array {
+    // Anonymous visitors get no session, so they cannot fill session storage.
+    if (session_status() !== PHP_SESSION_ACTIVE && !hasSessionCookie()) {
+        return null;
+    }
     startSecureSession();
     $userId = $_SESSION['user_id'] ?? null;
     if (!is_string($userId) || $userId === '') {
+        logoutCurrentUser();
+        return null;
+    }
+
+    $now ??= time();
+    $authenticatedAt = (int) ($_SESSION['authenticated_at'] ?? 0);
+    $lastSeen = (int) ($_SESSION['last_seen'] ?? 0);
+    if ($now - $authenticatedAt > SESSION_ABSOLUTE_SECONDS || $now - $lastSeen > SESSION_IDLE_SECONDS) {
+        logoutCurrentUser();
         return null;
     }
 
@@ -100,6 +142,7 @@ function currentUser(PDO $db): ?array {
         logoutCurrentUser();
         return null;
     }
+    $_SESSION['last_seen'] = $now;
     return $user;
 }
 
@@ -129,6 +172,8 @@ function loginUser(array $user): void {
         'user_id' => $user['id'],
         'session_version' => (int) $user['session_version'],
         'csrf_token' => bin2hex(random_bytes(32)),
+        'authenticated_at' => time(),
+        'last_seen' => time(),
     ];
 }
 
@@ -159,20 +204,84 @@ function loginPasswordHash(?array $user): string {
     return $user['password_hash'] ?? loginDummyPasswordHash();
 }
 
+function trustedDeviceCookieName(): string {
+    return authCookieName('boilerplate_device');
+}
+
 /**
- * Rate-limit buckets for one login attempt. IP+username blocks quickly,
- * the IP bucket stops password spraying, the username bucket stops
- * distributed guessing on one account.
+ * Keyed with the user's password hash: secret to the server, unique per user,
+ * and it changes with the password, which revokes every trusted device.
+ */
+function trustedDeviceMac(array $user, int $issuedAt): string {
+    return hash_hmac(
+        'sha256',
+        "trusted-device\0" . $user['id'] . "\0" . $issuedAt,
+        $user['password_hash']
+    );
+}
+
+/**
+ * Marks this browser as one that logged in to $user before (an OWASP device
+ * cookie). It only changes which rate-limit bucket applies; the password is
+ * still required.
+ */
+function issueTrustedDeviceCookie(array $user, ?int $now = null): void {
+    $now ??= time();
+    setcookie(
+        trustedDeviceCookieName(),
+        $user['id'] . '.' . $now . '.' . trustedDeviceMac($user, $now),
+        authCookieOptions($now + TRUSTED_DEVICE_SECONDS)
+    );
+}
+
+/**
+ * Returns the rate-limit key of this device when $cookie proves an earlier
+ * login as $user, otherwise null.
+ */
+function trustedDeviceKey(?array $user, mixed $cookie, ?int $now = null): ?string {
+    $now ??= time();
+    if ($user === null || !is_string($cookie)) {
+        return null;
+    }
+
+    $parts = explode('.', $cookie);
+    if (count($parts) !== 3 || !ctype_digit($parts[1])) {
+        return null;
+    }
+    [$userId, $issuedAt, $mac] = $parts;
+    $issuedAt = (int) $issuedAt;
+    if (
+        !hash_equals((string) $user['id'], $userId)
+        || $issuedAt > $now
+        || $now - $issuedAt > TRUSTED_DEVICE_SECONDS
+        || !hash_equals(trustedDeviceMac($user, $issuedAt), $mac)
+    ) {
+        return null;
+    }
+    return hash('sha256', "device\0" . $mac);
+}
+
+/**
+ * Rate-limit buckets for one login attempt. IP+username blocks quickly, the
+ * IP bucket stops password spraying, and the username bucket stops
+ * distributed guessing on one account. A trusted device gets its own bucket
+ * instead of the username bucket, so an attacker who fills the username
+ * bucket cannot lock the real user out of devices they used before.
  *
  * @return array<string, int> bucket key => maximum number of attempts
  */
-function loginRateLimitBuckets(string $ip, string $username): array {
+function loginRateLimitBuckets(string $ip, string $username, ?string $deviceKey = null): array {
     $username = normalizeUsername($username);
-    return [
+    $buckets = [
         hash('sha256', "ip-user\0" . $ip . "\0" . $username) => LOGIN_MAX_ATTEMPTS_PER_IP_USERNAME,
         hash('sha256', "ip\0" . $ip) => LOGIN_MAX_ATTEMPTS_PER_IP,
-        hash('sha256', "user\0" . $username) => LOGIN_MAX_ATTEMPTS_PER_USERNAME,
     ];
+    if ($deviceKey === null) {
+        $buckets[hash('sha256', "user\0" . $username)] = LOGIN_MAX_ATTEMPTS_PER_USERNAME;
+    } else {
+        $buckets[$deviceKey] = LOGIN_MAX_ATTEMPTS_PER_DEVICE;
+    }
+    return $buckets;
 }
 
 function pruneLoginAttempts(PDO $db, ?int $now = null): void {
@@ -234,11 +343,17 @@ function consumeLoginAttempt(PDO $db, string $key, int $limit, ?int $now = null)
 /**
  * Consumes an attempt from every bucket and stops with 429 once one is full.
  */
-function assertLoginAllowed(PDO $db, string $ip, string $username, ?int $now = null): void {
+function assertLoginAllowed(
+    PDO $db,
+    string $ip,
+    string $username,
+    ?string $deviceKey = null,
+    ?int $now = null
+): void {
     $now ??= time();
     pruneLoginAttempts($db, $now);
 
-    foreach (loginRateLimitBuckets($ip, $username) as $key => $limit) {
+    foreach (loginRateLimitBuckets($ip, $username, $deviceKey) as $key => $limit) {
         $retryAfter = consumeLoginAttempt($db, $key, $limit, $now);
         if ($retryAfter > 0) {
             errorResponse('too_many_login_attempts', 429, ['retryAfter' => $retryAfter]);
@@ -248,11 +363,18 @@ function assertLoginAllowed(PDO $db, string $ip, string $username, ?int $now = n
 
 /**
  * After a successful login: clear IP+username and refund the attempt to the
- * shared IP and username buckets, so legitimate traffic does not count.
+ * shared IP and username (or device) buckets, so legitimate traffic does not
+ * count.
  */
-function recordSuccessfulLogin(PDO $db, string $ip, string $username, ?int $now = null): void {
+function recordSuccessfulLogin(
+    PDO $db,
+    string $ip,
+    string $username,
+    ?string $deviceKey = null,
+    ?int $now = null
+): void {
     $now ??= time();
-    [$ipUserKey, $ipKey, $userKey] = array_keys(loginRateLimitBuckets($ip, $username));
+    [$ipUserKey, $ipKey, $userKey] = array_keys(loginRateLimitBuckets($ip, $username, $deviceKey));
 
     $delete = $db->prepare('DELETE FROM auth_login_attempts WHERE ip = :ip');
     $delete->execute(['ip' => $ipUserKey]);
@@ -264,4 +386,32 @@ function recordSuccessfulLogin(PDO $db, string $ip, string $username, ?int $now 
     );
     $refund->execute(['ip' => $ipKey, 'now' => $now]);
     $refund->execute(['ip' => $userKey, 'now' => $now]);
+}
+
+function passwordChangeRateLimitKey(string $userId): string {
+    return hash('sha256', "change-password\0" . $userId);
+}
+
+/**
+ * Limits guessing the current password with a stolen session. Every attempt
+ * counts; a successful change clears the bucket.
+ */
+function assertPasswordChangeAllowed(PDO $db, string $userId, ?int $now = null): void {
+    $now ??= time();
+    pruneLoginAttempts($db, $now);
+
+    $retryAfter = consumeLoginAttempt(
+        $db,
+        passwordChangeRateLimitKey($userId),
+        PASSWORD_CHANGE_MAX_ATTEMPTS,
+        $now
+    );
+    if ($retryAfter > 0) {
+        errorResponse('too_many_attempts', 429, ['retryAfter' => $retryAfter]);
+    }
+}
+
+function clearPasswordChangeAttempts(PDO $db, string $userId): void {
+    $stmt = $db->prepare('DELETE FROM auth_login_attempts WHERE ip = :ip');
+    $stmt->execute(['ip' => passwordChangeRateLimitKey($userId)]);
 }

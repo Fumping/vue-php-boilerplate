@@ -3,5 +3,5 @@
 $user = currentUser($db);
 jsonResponse([
     'user' => $user === null ? null : publicUser($user),
-    'csrfToken' => csrfToken(),
+    'csrfToken' => $user === null ? null : csrfToken(),
 ]);

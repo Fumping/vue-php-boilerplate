@@ -126,7 +126,9 @@ function isValidUsername(string $username): bool {
 }
 
 function isStrongPassword(string $password, string $username = ''): bool {
-    if (strlen($password) < 12 || strlen($password) > 200) {
+    // bcrypt (PASSWORD_DEFAULT) ignores everything after 72 bytes, so longer
+    // passwords would only look stronger than they are.
+    if (strlen($password) < 12 || strlen($password) > 72) {
         return false;
     }
 

@@ -16,7 +16,7 @@ npm run test        # Vitest
 
 ## Stack
 
-Vue 3 (Composition API, `<script setup>`) · Vue Router · Vite · Tailwind ·
+Vue 3 (Composition API, `<script setup>`) · Vue Router 5 · Vite 8 · Tailwind 4 ·
 Vitest · PHP 8 flat router · PDO (SQLite locally, MySQL in production).
 
 ## Architecture on one page
@@ -102,7 +102,7 @@ Auth is on by default, using PHP sessions:
 - Call `requireAdmin($db)` in every admin handler.
 - After authorization, also call `requireCsrfToken()` for mutations.
 - Never rely on Vue router meta alone. It is not server-side security.
-- New passwords are 12 to 200 characters and are stored with `password_hash()`.
+- New passwords are 12 to 72 bytes (bcrypt's limit) and are stored with `password_hash()`.
 - The bootstrap `admin`/`admin` account is for development only and must change
   its password immediately.
 - Production never runs schema DDL. Import `db/schema.mysql.sql` and create the

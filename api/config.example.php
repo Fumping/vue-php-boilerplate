@@ -5,6 +5,15 @@
 define('APP_ENV', 'development');
 define('SESSION_COOKIE_SECURE', false);
 
+// Development and test mode only answer requests from this machine (loopback).
+// Set to true only for a trusted dev setup such as Docker or a LAN VM.
+define('DEV_ALLOW_REMOTE_CLIENTS', false);
+
+// Reverse proxies or load balancers in front of PHP (addresses or CIDR ranges,
+// e.g. ['10.0.0.0/8']). Only requests from these may set X-Forwarded-For for
+// login rate limiting. Leave empty when PHP receives clients directly.
+define('TRUSTED_PROXIES', []);
+
 // Only local SQLite development uses this bootstrap. Create production admins
 // once with api/cli/bootstrap-admin.php.
 define('BOOTSTRAP_ADMIN_USERNAME', 'admin');

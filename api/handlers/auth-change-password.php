@@ -3,6 +3,7 @@
 $user = requireUser($db, true);
 requireCsrfToken();
 $body = requireJsonBody();
+assertPasswordChangeAllowed($db, $user['id']);
 $currentPassword = is_string($body['currentPassword'] ?? null) ? $body['currentPassword'] : '';
 $newPassword = is_string($body['newPassword'] ?? null) ? $body['newPassword'] : '';
 
@@ -28,7 +29,9 @@ $stmt->execute([
     'id' => $user['id'],
 ]);
 
+clearPasswordChangeAttempts($db, $user['id']);
 $updatedUser = findUserById($db, $user['id']);
+issueTrustedDeviceCookie($updatedUser);
 loginUser($updatedUser);
 jsonResponse([
     'user' => publicUser($updatedUser),

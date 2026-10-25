@@ -36,10 +36,10 @@ Then open [http://localhost:5173/](http://localhost:5173/).
 
 | Layer | Technology |
 |---|---|
-| Frontend | Vue 3 (Composition API, `<script setup>`), Vue Router 4 |
-| Styling | Tailwind CSS 3.4 + PostCSS + Autoprefixer |
+| Frontend | Vue 3 (Composition API, `<script setup>`), Vue Router 5 |
+| Styling | Tailwind CSS 4 via `@tailwindcss/vite` (config lives in `src/style.css`) |
 | Build | Vite 8 |
-| Testing | Vitest + jsdom |
+| Testing | Vitest 5 + jsdom |
 | Backend | PHP 8 (flat router, no framework) |
 | Database | SQLite locally, MySQL in production (via `DB_DRIVER`) |
 | Dev server | `concurrently` runs Vite (5173) and the PHP built-in server (8000) side by side |
@@ -71,6 +71,9 @@ Then open [http://localhost:5173/](http://localhost:5173/).
 ```
 
 ## Environment setup
+
+Requires Node.js `^22.22.2`, `^24.15.0` or `>=26`, and PHP 8.2 or newer with
+`pdo_sqlite`.
 
 1. Copy `.env.example` to `.env`.
 2. Copy `api/config.example.php` to `api/config.php`.
@@ -109,7 +112,7 @@ This produces a complete `dist/` folder containing:
 **CI/CD (GitHub Actions)**
 
 `.github/workflows/ci.yml` runs on every pull request. It runs `php -l` and the
-API tests on PHP 8.2 and 8.4, then Vitest and `npm run build`, and checks that
+API tests on PHP 8.2, 8.4 and 8.5, then Vitest and `npm run build`, and checks that
 `dist/` contains no `config.php`, SQLite data, `.env` files or logs.
 
 `.github/workflows/release.yml` runs on every push to `main`, or manually. It
@@ -133,6 +136,9 @@ contents to your webroot (step 3 below).
 5. In that file, set `APP_ENV` to `'production'`, `SESSION_COOKIE_SECURE` to
    `true` and `DB_DRIVER` to `'mysql'`, and fill in the runtime credentials.
    Make the file readable only by the web server user (`chmod 600`).
+   If a reverse proxy or load balancer sits in front of PHP, list its
+   addresses in `TRUSTED_PROXIES`; otherwise every visitor shares the proxy's
+   IP for login rate limiting.
 6. Create the first production admin once, without leaving the password in SQL
    or your shell history:
    ```bash
@@ -143,6 +149,28 @@ contents to your webroot (step 3 below).
    ```
 7. Serve the application over HTTPS only, and test it with
    `curl https://your-domain/api/`.
+8. Check that the web server blocks internal files:
+   `curl -I https://your-domain/api/config.example.php` and
+   `curl -I https://your-domain/api/helpers/auth.php` must both return 403.
+
+**Web server requirements**
+
+The `.htaccess` files block direct access to `api/cli`, `api/handlers`,
+`api/helpers`, `api/storage` and config files. They only work on Apache with
+`mod_rewrite` and `AllowOverride All` (at least `FileInfo`, `Options`,
+`AuthConfig` and `Limit`) for the webroot. On nginx, `.htaccess` is ignored,
+so add the equivalent rules yourself:
+
+```nginx
+location ~ ^/api/(cli|handlers|helpers|storage)(/|$) { return 403; }
+location ~ ^/api/config.*\.php$ { return 403; }
+location /api/ { try_files $uri /api/index.php$is_args$args; }
+location / { try_files $uri $uri/ /index.html; }
+```
+
+The API refuses requests from other machines while `APP_ENV` is not
+`'production'`, so a server accidentally deployed with the example config
+does not expose the development `admin`/`admin` bootstrap account.
 
 ## Database
 
@@ -185,10 +213,16 @@ The alternative is to keep two schema files (`db/schema.sqlite.sql` and
 
 The boilerplate uses server-side PHP sessions with:
 
-- HttpOnly and SameSite cookies, plus Secure cookies in production
+- HttpOnly and SameSite=Strict cookies, plus Secure `__Host-` cookies in production
+- sessions that expire after 2 hours idle or 12 hours in total, and no session
+  at all for anonymous visitors
 - CSRF validation on every mutation
-- `password_hash()`/`password_verify()` and a forced password change on first login
-- rate limiting on failed logins
+- `password_hash()`/`password_verify()`, passwords of 12 to 72 bytes and a
+  forced password change on first login
+- login rate limiting per IP+username, per IP (IPv6 per /64) and per account;
+  browsers that logged in before (trusted-device cookie) keep working while
+  an attacker exhausts the per-account limit
+- a limit on current-password guesses when changing the password
 - server-side role checks for `/api/admin/*`
 
 Log in at `/login`. Admins manage users at `/admin/users`. New users get a

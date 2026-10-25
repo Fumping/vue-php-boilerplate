@@ -20,22 +20,22 @@ async function signOut() {
 <template>
   <main class="min-h-screen bg-slate-50 p-8">
     <div class="mx-auto max-w-3xl space-y-6">
-      <header class="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+      <header class="flex items-center justify-between rounded-lg bg-white p-6 shadow-xs">
         <div>
           <h1 class="text-3xl font-bold text-slate-800">Boilerplate</h1>
           <p class="mt-1 text-slate-600">
-            Logged in as <strong>{{ user.username }}</strong>
+            Logged in as <strong>{{ user?.username }}</strong>
           </p>
         </div>
         <button class="text-sm text-slate-700 underline" @click="signOut">Log out</button>
       </header>
 
-      <section v-if="user.role === 'admin'" class="rounded-lg bg-white p-6 shadow-sm">
+      <section v-if="user?.role === 'admin'" class="rounded-lg bg-white p-6 shadow-xs">
         <h2 class="text-lg font-semibold text-slate-800">Admin</h2>
         <p class="mt-1 text-sm text-slate-500">Add users and manage their roles.</p>
         <RouterLink
           to="/admin/users"
-          class="mt-4 inline-block rounded bg-slate-900 px-4 py-2 text-white"
+          class="mt-4 inline-block rounded-sm bg-slate-900 px-4 py-2 text-white"
         >
           Manage users
         </RouterLink>
