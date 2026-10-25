@@ -1,8 +1,8 @@
 name: Release artifact
 
-# Bij elke push naar main: eerst de volledige CI, daarna dist/ bouwen en als
-# downloadbaar artifact publiceren. Uploaden naar de server blijft handwerk
-# (zie README → "Build & deploy").
+# On every push to main: run the full CI, then build dist/ and publish it as a
+# downloadable artifact. Uploading to the server stays a manual step
+# (see README → "Build and deploy").
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Build-info toevoegen
+      - name: Add build info
         run: |
           cat > dist/BUILD_INFO.txt <<EOF
           commit: ${GITHUB_SHA}
@@ -50,7 +50,7 @@ jobs:
         id: sha
         run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      # include-hidden-files: anders vallen de .htaccess-bestanden weg.
+      # include-hidden-files: otherwise the .htaccess files are dropped.
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ steps.sha.outputs.short }}

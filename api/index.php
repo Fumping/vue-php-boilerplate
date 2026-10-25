@@ -34,7 +34,7 @@ if ($method === 'OPTIONS') {
     exit;
 }
 
-// Publiek
+// Public
 if ($method === 'GET' && $path === '/') {
     require __DIR__ . '/handlers/health.php';
     exit;
@@ -48,7 +48,7 @@ if ($method === 'GET' && $path === '/auth/me') {
     exit;
 }
 
-// Ingelogd
+// Logged in
 if ($method === 'POST' && $path === '/auth/logout') {
     require __DIR__ . '/handlers/auth-logout.php';
     exit;
@@ -58,7 +58,7 @@ if ($method === 'POST' && $path === '/auth/change-password') {
     exit;
 }
 
-// Alleen admins
+// Admins only
 if ($method === 'GET' && $path === '/admin/users') {
     require __DIR__ . '/handlers/admin-users-list.php';
     exit;

@@ -1,23 +1,23 @@
 <?php
-// ─── Applicatie ───────────────────────────────────────────────────
-// Gebruik 'production' op de server. Productiemodus weigert onveilige
-// config- en cookie-instellingen en voert nooit schema-DDL uit.
+// ─── Application ──────────────────────────────────────────────────
+// Use 'production' on the server. Production mode rejects unsafe config and
+// cookie settings and never runs schema DDL.
 define('APP_ENV', 'development');
 define('SESSION_COOKIE_SECURE', false);
 
-// Alleen lokale SQLite-development gebruikt deze bootstrap. Productieadmins
-// maak je eenmalig aan met api/cli/bootstrap-admin.php.
+// Only local SQLite development uses this bootstrap. Create production admins
+// once with api/cli/bootstrap-admin.php.
 define('BOOTSTRAP_ADMIN_USERNAME', 'admin');
 define('BOOTSTRAP_ADMIN_PASSWORD', 'admin');
 
 // ─── Database ─────────────────────────────────────────────────────
-// Zet DB_DRIVER op 'sqlite' (lokaal) of 'mysql' (productie).
+// Set DB_DRIVER to 'sqlite' (local) or 'mysql' (production).
 define('DB_DRIVER', 'sqlite');
 
-// SQLite (lokaal) — bestand wordt automatisch aangemaakt
+// SQLite (local): the file is created automatically
 define('DB_SQLITE_PATH', __DIR__ . '/storage/db.sqlite');
 
-// MySQL (productie) — vul in bij deploy
+// MySQL (production): fill in when deploying
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'my_database');
 define('DB_USER', 'my_user');
@@ -64,18 +64,18 @@ function pathIsInsideDocumentRoot(string $path): bool {
 
 function validateAppConfig(string $configPath): void {
     if (!in_array(APP_ENV, ['development', 'test', 'production'], true)) {
-        throw new RuntimeException('Ongeldige APP_ENV.');
+        throw new RuntimeException('Invalid APP_ENV.');
     }
 
     if (APP_ENV === 'production') {
         if (pathIsInsideDocumentRoot($configPath)) {
-            throw new RuntimeException('Plaats de productieconfig buiten de webroot.');
+            throw new RuntimeException('Place the production config outside the webroot.');
         }
         if (DB_DRIVER === 'sqlite' && pathIsInsideDocumentRoot(DB_SQLITE_PATH)) {
-            throw new RuntimeException('Plaats de productie-SQLite-database buiten de webroot.');
+            throw new RuntimeException('Place the production SQLite database outside the webroot.');
         }
         if (!SESSION_COOKIE_SECURE) {
-            throw new RuntimeException('SESSION_COOKIE_SECURE moet aan staan in productie.');
+            throw new RuntimeException('SESSION_COOKIE_SECURE must be enabled in production.');
         }
     }
 }

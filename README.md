@@ -219,7 +219,7 @@ own composables.
 **"server_not_configured" on API calls:**
 `api/config.php` doesn't exist. Copy `api/config.example.php`.
 
-**"Database-schema ontbreekt" (schema missing) in production:**
+**"Database schema is missing" in production:**
 Import `db/schema.mysql.sql` with a migration user. Don't give the runtime user
 DDL permissions.
 

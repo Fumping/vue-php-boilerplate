@@ -16,13 +16,13 @@ RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# /api/* wordt door api/.htaccess afgehandeld
+# /api/* is handled by api/.htaccess
 RewriteRule ^api/ - [L]
 
-# Al het overige naar de Vue SPA
+# Everything else goes to the Vue SPA
 RewriteRule ^ index.html [L]
 
-# Cache-control voor gehashte assets (Vite output)
+# Cache-control for hashed assets (Vite output)
 <IfModule mod_headers.c>
     <FilesMatch "\.(js|css|woff2?|png|jpe?g|svg|webp)$">
         Header set Cache-Control "public, max-age=31536000, immutable"

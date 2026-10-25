@@ -20,7 +20,7 @@ onMounted(async () => {
   try {
     await loadUsers()
   } catch {
-    error.value = 'Gebruikers konden niet worden geladen.'
+    error.value = 'Users could not be loaded.'
   } finally {
     loading.value = false
   }
@@ -37,17 +37,17 @@ async function createUser() {
       role: role.value,
     })
     users.value.push(created)
-    success.value = `Gebruiker ${created.username} is toegevoegd.`
+    success.value = `User ${created.username} has been added.`
     username.value = ''
     password.value = ''
     role.value = 'user'
   } catch (e) {
     const messages = {
-      invalid_username: 'Gebruik 3–50 kleine letters, cijfers, punten, streepjes of underscores.',
-      password_too_weak: 'Het tijdelijke wachtwoord moet minimaal 12 tekens hebben.',
-      username_taken: 'Deze gebruikersnaam bestaat al.',
+      invalid_username: 'Use 3 to 50 lowercase letters, digits, dots, hyphens or underscores.',
+      password_too_weak: 'The temporary password must be at least 12 characters.',
+      username_taken: 'This username already exists.',
     }
-    error.value = messages[e.message] ?? 'Gebruiker kon niet worden toegevoegd.'
+    error.value = messages[e.message] ?? 'The user could not be added.'
   } finally {
     submitting.value = false
   }
@@ -59,19 +59,19 @@ async function createUser() {
     <div class="mx-auto max-w-5xl space-y-8">
       <header class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold text-slate-800">Gebruikers</h1>
-          <p class="text-sm text-slate-500">Nieuwe gebruikers wijzigen hun wachtwoord bij de eerste login.</p>
+          <h1 class="text-3xl font-bold text-slate-800">Users</h1>
+          <p class="text-sm text-slate-500">New users change their password on first login.</p>
         </div>
-        <RouterLink to="/" class="text-sm text-slate-700 underline">Terug</RouterLink>
+        <RouterLink to="/" class="text-sm text-slate-700 underline">Back</RouterLink>
       </header>
 
       <section class="rounded-lg bg-white p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-slate-800">Gebruiker toevoegen</h2>
+        <h2 class="text-lg font-semibold text-slate-800">Add user</h2>
         <form class="mt-4 grid gap-4 md:grid-cols-4" @submit.prevent="createUser">
           <input
             v-model="username"
             autocomplete="off"
-            placeholder="gebruikersnaam"
+            placeholder="username"
             minlength="3"
             maxlength="50"
             required
@@ -81,14 +81,14 @@ async function createUser() {
             v-model="password"
             type="password"
             autocomplete="new-password"
-            placeholder="tijdelijk wachtwoord"
+            placeholder="temporary password"
             minlength="12"
             maxlength="200"
             required
             class="rounded border border-slate-300 px-3 py-2"
           />
           <select v-model="role" class="rounded border border-slate-300 px-3 py-2">
-            <option value="user">Gebruiker</option>
+            <option value="user">User</option>
             <option value="admin">Admin</option>
           </select>
           <button
@@ -96,7 +96,7 @@ async function createUser() {
             :disabled="submitting"
             class="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
           >
-            Toevoegen
+            Add
           </button>
         </form>
         <p v-if="error" role="alert" class="mt-3 text-sm text-red-600">{{ error }}</p>
@@ -104,14 +104,14 @@ async function createUser() {
       </section>
 
       <section class="overflow-hidden rounded-lg bg-white shadow-sm">
-        <p v-if="loading" class="p-6 text-slate-500">Laden…</p>
+        <p v-if="loading" class="p-6 text-slate-500">Loading…</p>
         <table v-else class="w-full text-left text-sm">
           <thead class="bg-slate-100 text-slate-600">
             <tr>
-              <th class="px-6 py-3">Gebruikersnaam</th>
-              <th class="px-6 py-3">Rol</th>
+              <th class="px-6 py-3">Username</th>
+              <th class="px-6 py-3">Role</th>
               <th class="px-6 py-3">Status</th>
-              <th class="px-6 py-3">Aangemaakt</th>
+              <th class="px-6 py-3">Created</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -119,7 +119,7 @@ async function createUser() {
               <td class="px-6 py-4 font-medium text-slate-800">{{ item.username }}</td>
               <td class="px-6 py-4">{{ item.role }}</td>
               <td class="px-6 py-4">
-                {{ item.mustChangePassword ? 'Wachtwoord wijzigen' : 'Actief' }}
+                {{ item.mustChangePassword ? 'Must change password' : 'Active' }}
               </td>
               <td class="px-6 py-4">{{ item.createdAt }}</td>
             </tr>

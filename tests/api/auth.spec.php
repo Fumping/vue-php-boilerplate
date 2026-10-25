@@ -25,22 +25,22 @@ $users = $db->query(
      FROM users'
 )->fetchAll();
 
-assertTest(count($users) === 1, 'Bootstrap moet exact één gebruiker maken.');
-assertTest($users[0]['username'] === 'admin', 'Bootstrap-gebruikersnaam klopt niet.');
-assertTest($users[0]['role'] === 'admin', 'Bootstrap-gebruiker moet admin zijn.');
-assertTest((int) $users[0]['must_change_password'] === 1, 'Eerste wijziging moet verplicht zijn.');
-assertTest(password_verify('admin', $users[0]['password_hash']), 'Bootstrap-wachtwoord is niet gehasht.');
-assertTest((int) $users[0]['session_version'] === 1, 'Sessieversie moet geïnitialiseerd zijn.');
+assertTest(count($users) === 1, 'Bootstrap must create exactly one user.');
+assertTest($users[0]['username'] === 'admin', 'Bootstrap username is wrong.');
+assertTest($users[0]['role'] === 'admin', 'Bootstrap user must be an admin.');
+assertTest((int) $users[0]['must_change_password'] === 1, 'First password change must be required.');
+assertTest(password_verify('admin', $users[0]['password_hash']), 'Bootstrap password is not hashed.');
+assertTest((int) $users[0]['session_version'] === 1, 'Session version must be initialized.');
 assertTest(
     (int) $db->query('SELECT version FROM schema_version WHERE id = 1')->fetchColumn()
         === DATABASE_SCHEMA_VERSION,
-    'Schemaversie klopt niet.'
+    'Schema version is wrong.'
 );
-assertTest(isStrongPassword('Long-Unique-Password!', 'tester'), 'Sterk wachtwoord wordt geweigerd.');
-assertTest(!isStrongPassword('adminadminadmin', 'admin'), 'Bekend zwak wachtwoord wordt geaccepteerd.');
+assertTest(isStrongPassword('Long-Unique-Password!', 'tester'), 'Strong password is rejected.');
+assertTest(!isStrongPassword('adminadminadmin', 'admin'), 'Known weak password is accepted.');
 assertTest(
     loginRateLimitKey('127.0.0.1', 'admin') !== loginRateLimitKey('127.0.0.1', 'other'),
-    'Rate limiting moet per IP en gebruikersnaam gelden.'
+    'Rate limiting must apply per IP and username.'
 );
 
 echo "PHP auth tests passed\n";

@@ -1,7 +1,7 @@
 name: CI
 
-# Pushes naar main draaien deze workflow via release.yml (workflow_call),
-# zodat CI daar niet dubbel loopt.
+# Pushes to main run this workflow through release.yml (workflow_call),
+# so CI does not run twice there.
 on:
   pull_request:
   workflow_call:
@@ -57,13 +57,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      # dist/ is het deploy-artifact: er mogen nooit secrets of lokale data in zitten.
-      - name: Check dist/ op gevoelige bestanden
+      # dist/ is the deploy artifact: it must never contain secrets or local data.
+      - name: Check dist/ for sensitive files
         run: |
           leaks=$(find dist \( -name 'config.php' -o -name 'config.local.php' \
             -o -name '*.sqlite*' -o -name '.env*' -o -name '*.log' \) -print)
           if [ -n "$leaks" ]; then
-            echo "::error::Gevoelige bestanden in dist/:"
+            echo "::error::Sensitive files in dist/:"
             echo "$leaks"
             exit 1
           fi

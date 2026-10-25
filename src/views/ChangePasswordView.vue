@@ -15,11 +15,11 @@ const submitting = ref(false)
 async function submit() {
   error.value = ''
   if (newPassword.value !== confirmation.value) {
-    error.value = 'De nieuwe wachtwoorden zijn niet gelijk.'
+    error.value = 'The new passwords do not match.'
     return
   }
   if (newPassword.value.length < 12) {
-    error.value = 'Gebruik minimaal 12 tekens.'
+    error.value = 'Use at least 12 characters.'
     return
   }
 
@@ -29,8 +29,8 @@ async function submit() {
     await router.replace('/')
   } catch (e) {
     error.value = e.message === 'invalid_current_password'
-      ? 'Het huidige wachtwoord klopt niet.'
-      : 'Het wachtwoord kon niet worden gewijzigd.'
+      ? 'The current password is incorrect.'
+      : 'The password could not be changed.'
   } finally {
     submitting.value = false
   }
@@ -44,14 +44,14 @@ async function submit() {
       @submit.prevent="submit"
     >
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Nieuw wachtwoord instellen</h1>
+        <h1 class="text-2xl font-bold text-slate-800">Set a new password</h1>
         <p class="mt-1 text-sm text-slate-500">
-          Je tijdelijke wachtwoord moet vóór gebruik van de applicatie worden vervangen.
+          You need to replace your temporary password before using the application.
         </p>
       </div>
 
       <label class="block space-y-1">
-        <span class="text-sm font-medium text-slate-700">Huidig wachtwoord</span>
+        <span class="text-sm font-medium text-slate-700">Current password</span>
         <input
           v-model="currentPassword"
           type="password"
@@ -62,7 +62,7 @@ async function submit() {
       </label>
 
       <label class="block space-y-1">
-        <span class="text-sm font-medium text-slate-700">Nieuw wachtwoord</span>
+        <span class="text-sm font-medium text-slate-700">New password</span>
         <input
           v-model="newPassword"
           type="password"
@@ -75,7 +75,7 @@ async function submit() {
       </label>
 
       <label class="block space-y-1">
-        <span class="text-sm font-medium text-slate-700">Herhaal nieuw wachtwoord</span>
+        <span class="text-sm font-medium text-slate-700">Repeat new password</span>
         <input
           v-model="confirmation"
           type="password"
@@ -94,7 +94,7 @@ async function submit() {
         :disabled="submitting"
         class="w-full rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
       >
-        Wachtwoord opslaan
+        Save password
       </button>
     </form>
   </main>
