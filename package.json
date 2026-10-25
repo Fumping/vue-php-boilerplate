@@ -1,8 +1,11 @@
 {
   "name": "{{APP_NAME}}",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26"
+  },
   "scripts": {
     "dev": "concurrently -k -n vite,php -c cyan,magenta \"vite\" \"php -S localhost:8000 api/index.php\"",
     "dev:vite": "vite",
