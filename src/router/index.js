@@ -7,17 +7,17 @@ const router = createRouter({
     {
       path: '/login',
       component: () => import('../views/LoginView.vue'),
-      meta: { title: 'Inloggen', guestOnly: true },
+      meta: { title: 'Log in', guestOnly: true },
     },
     {
       path: '/change-password',
       component: () => import('../views/ChangePasswordView.vue'),
-      meta: { title: 'Wachtwoord wijzigen', requiresAuth: true, allowPasswordChange: true },
+      meta: { title: 'Change password', requiresAuth: true, allowPasswordChange: true },
     },
     {
       path: '/admin/users',
       component: () => import('../views/AdminUsersView.vue'),
-      meta: { title: 'Gebruikers', requiresAuth: true, requiresAdmin: true },
+      meta: { title: 'Users', requiresAuth: true, requiresAdmin: true },
     },
     {
       path: '/',

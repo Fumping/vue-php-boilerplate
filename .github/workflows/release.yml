@@ -1,0 +1,60 @@
+name: Release artifact
+
+# On every push to main: run the full CI, then build dist/ and publish it as a
+# downloadable artifact. Uploading to the server stays a manual step
+# (see README → "Build and deploy").
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    name: Build dist/ artifact
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Add build info
+        run: |
+          cat > dist/BUILD_INFO.txt <<EOF
+          commit: ${GITHUB_SHA}
+          ref: ${GITHUB_REF_NAME}
+          run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          built: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          EOF
+
+      - name: Short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # include-hidden-files: otherwise the .htaccess files are dropped.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ steps.sha.outputs.short }}
+          path: dist/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

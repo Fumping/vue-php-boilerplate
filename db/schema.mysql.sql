@@ -1,5 +1,5 @@
--- Importeer dit bestand eenmalig met een databasebeheerder vóór deployment.
--- De runtimegebruiker heeft daarna alleen SELECT, INSERT, UPDATE en DELETE nodig.
+-- Import this file once, as a database administrator, before deployment.
+-- After that the runtime user only needs SELECT, INSERT, UPDATE and DELETE.
 
 CREATE TABLE IF NOT EXISTS schema_version (
     id TINYINT UNSIGNED NOT NULL PRIMARY KEY,

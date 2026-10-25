@@ -28,23 +28,23 @@ try {
     $password = getenv('ADMIN_PASSWORD');
 
     if (!isValidUsername($username)) {
-        throw new RuntimeException('Ongeldige admin-gebruikersnaam.');
+        throw new RuntimeException('Invalid admin username.');
     }
     if (!is_string($password) || !isStrongPassword($password, $username)) {
         throw new RuntimeException(
-            'Stel ADMIN_PASSWORD tijdelijk in op een uniek wachtwoord van 12–200 tekens.'
+            'Temporarily set ADMIN_PASSWORD to a unique password of 12 to 200 characters.'
         );
     }
 
     $stmt = $db->prepare('SELECT COUNT(*) FROM users WHERE username = :username');
     $stmt->execute(['username' => $username]);
     if ((int) $stmt->fetchColumn() !== 0) {
-        throw new RuntimeException('Deze gebruikersnaam bestaat al.');
+        throw new RuntimeException('This username already exists.');
     }
 
     createUser($db, $username, $password, 'admin');
-    fwrite(STDOUT, "Admin '{$username}' aangemaakt; wachtwoordwijziging is verplicht.\n");
+    fwrite(STDOUT, "Admin '{$username}' created; a password change is required.\n");
 } catch (Throwable $exception) {
-    fwrite(STDERR, 'Bootstrap mislukt: ' . $exception->getMessage() . "\n");
+    fwrite(STDERR, 'Bootstrap failed: ' . $exception->getMessage() . "\n");
     exit(1);
 }

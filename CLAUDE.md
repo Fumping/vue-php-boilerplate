@@ -1,56 +1,56 @@
-# CLAUDE.md — instructies voor Claude Code
+# CLAUDE.md: instructions for Claude Code
 
-Deze file leest Claude bij het starten van een sessie in dit project. Houd 'm
-kort en concreet.
+Claude reads this file at the start of every session in this project. Keep it
+short and concrete.
 
 ## Commands
 
 ```bash
-npm run dev         # Vite (5173) + PHP (8000) parallel via concurrently
-npm run dev:vite    # Alleen Vite
-npm run dev:php     # Alleen PHP built-in server
+npm run dev         # Vite (5173) + PHP (8000) in parallel via concurrently
+npm run dev:vite    # Vite only
+npm run dev:php     # PHP built-in server only
 npm run build       # Frontend + api/ → dist/
-npm run preview     # Preview de gebouwde dist/
+npm run preview     # Preview the built dist/
 npm run test        # Vitest
 ```
 
 ## Stack
 
 Vue 3 (Composition API, `<script setup>`) · Vue Router · Vite · Tailwind ·
-Vitest · PHP 8 flat router · PDO (SQLite lokaal, MySQL productie).
+Vitest · PHP 8 flat router · PDO (SQLite locally, MySQL in production).
 
-## Architectuur op één pagina
+## Architecture on one page
 
 ```
 Vue frontend (src/)
   └─ fetch('/api/...') via src/lib/api.js
-      └─ Vite proxy (dev) of Apache rewrite (prod)
+      └─ Vite proxy (dev) or Apache rewrite (prod)
           └─ api/index.php  ← flat router
-              ├─ publieke endpoints (health, login, auth/me)
-              ├─ requireUser($db) voor ingelogde gebruikers
-              └─ requireAdmin($db) voor beheer
-                  └─ elk endpoint = 1 handler in api/handlers/
+              ├─ public endpoints (health, login, auth/me)
+              ├─ requireUser($db) for logged-in users
+              └─ requireAdmin($db) for admin
+                  └─ each endpoint = 1 handler in api/handlers/
 ```
 
-## Patronen die je MOET volgen
+## Patterns you MUST follow
 
-### Nieuwe API-endpoint toevoegen
+### Adding a new API endpoint
 
-1. Maak een handler in `api/handlers/<naam>.php`. Voorbeeld:
+1. Create a handler in `api/handlers/<name>.php`. Example:
    ```php
    <?php
    $db = getDb();
    $rows = $db->query('SELECT * FROM items')->fetchAll();
    jsonResponse($rows);
    ```
-2. Mount 'm in `api/index.php`:
+2. Mount it in `api/index.php`:
    ```php
    if ($method === 'GET' && $path === '/items') {
        require __DIR__ . '/handlers/items-list.php';
        exit;
    }
    ```
-3. Roep 'm aan vanuit een composable in `src/composables/`:
+3. Call it from a composable in `src/composables/`:
    ```js
    import { useApi } from './useApi.js'
    export function useItems() {
@@ -64,88 +64,89 @@ Vue frontend (src/)
 
 ### Frontend fetch
 
-**ALTIJD** via `src/lib/api.js` — nooit bare `fetch()`. Reden: sessiecookies,
-CSRF-headers en fouten worden daar uniform afgehandeld.
+**ALWAYS** go through `src/lib/api.js`, never bare `fetch()`. That's where
+session cookies, CSRF headers and errors are handled consistently.
 
 ### PHP database access
 
-**ALTIJD** via `getDb()` uit `api/config.php` — nooit bare `new PDO()`.
-Reden: DB_DRIVER-schakeling zit in `getDb()`, en de connectie wordt gecached.
+**ALWAYS** use `getDb()` from `api/config.php`, never bare `new PDO()`.
+`getDb()` handles the `DB_DRIVER` switch and caches the connection.
 
-### Nieuwe Vue view/route
+### New Vue view/route
 
-1. Maak `src/views/MijnView.vue`.
-2. Registreer in `src/router/index.js`:
+1. Create `src/views/MyView.vue`.
+2. Register it in `src/router/index.js`:
    ```js
-   { path: '/mijn', component: () => import('../views/MijnView.vue'), meta: { title: 'Mijn' } }
+   { path: '/my', component: () => import('../views/MyView.vue'), meta: { title: 'My' } }
    ```
 
-## SQL portabiliteit (SQLite ↔ MySQL)
+## SQL portability (SQLite ↔ MySQL)
 
-Bij ontwerp van schema's — beide moeten werken.
+When designing a schema, it has to work on both.
 
-| Doe | Niet doe |
+| Do | Don't |
 |---|---|
-| `INTEGER PRIMARY KEY` | `INT AUTO_INCREMENT PRIMARY KEY` (MySQL-only) |
-| `TEXT` + CHECK constraint | `ENUM('a','b')` (MySQL-only) |
-| `INTEGER` voor booleans | `BOOLEAN` (verschilt per DB) |
-| `DATETIME DEFAULT CURRENT_TIMESTAMP` | `TIMESTAMP` met `ON UPDATE` (MySQL-only) |
-| Dubbele quotes voor identifiers | Backticks (MySQL-only) |
+| `INTEGER PRIMARY KEY` | `INT AUTO_INCREMENT PRIMARY KEY` (MySQL only) |
+| `TEXT` + CHECK constraint | `ENUM('a','b')` (MySQL only) |
+| `INTEGER` for booleans | `BOOLEAN` (differs per DB) |
+| `DATETIME DEFAULT CURRENT_TIMESTAMP` | `TIMESTAMP` with `ON UPDATE` (MySQL only) |
+| Double quotes for identifiers | Backticks (MySQL only) |
 
-Zie `README.md` sectie "SQL portabiliteit" voor de complete tabel.
+See the "SQL portability" section in `README.md` for the full table.
 
 ## Auth
 
-Auth is standaard actief via PHP-sessies. Regels:
+Auth is on by default, using PHP sessions. Rules:
 
-- Gebruik `requireUser($db)` in iedere ingelogde handler.
-- Gebruik `requireAdmin($db)` in iedere adminhandler.
-- Roep na `requireUser`/`requireAdmin` ook `requireCsrfToken()` aan bij
-  POST-, PUT-, PATCH- en DELETE-mutaties.
-- Vertrouw nooit alleen op Vue-routermeta; dat is geen serverbeveiliging.
-- Nieuwe wachtwoorden hebben 12–200 tekens en worden uitsluitend met
-  `password_hash()` opgeslagen.
-- De bootstrap `admin`/`admin` is alleen voor development en vereist direct een
-  wachtwoordwijziging.
-- Productie voert nooit schema-DDL uit. Importeer `db/schema.mysql.sql` en maak
-  de eerste admin via `api/cli/bootstrap-admin.php`.
+- Call `requireUser($db)` in every logged-in handler.
+- Call `requireAdmin($db)` in every admin handler.
+- After `requireUser`/`requireAdmin`, also call `requireCsrfToken()` for POST,
+  PUT, PATCH and DELETE mutations.
+- Never rely on Vue router meta alone. It is not server-side security.
+- New passwords are 12 to 200 characters and are stored only via
+  `password_hash()`.
+- The bootstrap `admin`/`admin` account is for development only and must change
+  its password immediately.
+- Production never runs schema DDL. Import `db/schema.mysql.sql` and create the
+  first admin with `api/cli/bootstrap-admin.php`.
 
-## Multi-tool patroon (optioneel)
+## Multi-tool pattern (optional)
 
-Als deze app een dashboard met meerdere tools wordt (à la `inventus-tools`):
+If this app becomes a dashboard with several tools (like `inventus-tools`):
 
-1. Maak `src/tools.js`:
+1. Create `src/tools.js`:
    ```js
    export const tools = [
      { id: 'foo', label: 'Foo', description: '...', route: '/tools/foo' },
      { id: 'bar', label: 'Bar', description: '...', route: '/tools/bar' },
    ]
    ```
-2. Maak `src/views/tools/foo/index.vue` per tool.
-3. Registreer routes: `path: '/tools/foo'`, `component: () => import('../views/tools/foo/index.vue')`.
-4. Laat `HomeView.vue` de tools uit `tools.js` als tegels renderen.
+2. Create `src/views/tools/foo/index.vue` for each tool.
+3. Register routes: `path: '/tools/foo'`, `component: () => import('../views/tools/foo/index.vue')`.
+4. Have `HomeView.vue` render the tools from `tools.js` as tiles.
 
-## Wat NIET te doen
+## What NOT to do
 
-- **Geen framework toevoegen** (Laravel, Symfony, Slim). Flat router is bewust.
-- **Geen npm-packages toevoegen zonder overleg** met de user. Baseline is
-  klein om een reden.
-- **Geen `@supabase/supabase-js` in baseline**. Als je Supabase nodig hebt,
-  voeg 't per-project toe.
-- **Geen ORM** (Eloquent, Doctrine). Ruwe PDO met prepared statements.
-- **Geen bare `fetch()` in views** — altijd via `src/lib/api.js`.
-- **Geen bare `new PDO()`** — altijd via `getDb()`.
-- **Niet buiten de bestaande bestandsstructuur** afwijken zonder eerst
-  te bespreken.
+- **Don't add a framework** (Laravel, Symfony, Slim). The flat router is deliberate.
+- **Don't add npm packages without asking** the user first. The baseline is
+  small for a reason.
+- **No `@supabase/supabase-js` in the baseline.** If a project needs Supabase,
+  add it per project.
+- **No ORM** (Eloquent, Doctrine). Raw PDO with prepared statements.
+- **No bare `fetch()` in views.** Always go through `src/lib/api.js`.
+- **No bare `new PDO()`.** Always use `getDb()`.
+- **Don't deviate from the existing file structure** without discussing it
+  first.
 
-## Beslissingsgeschiedenis
+## Decision history
 
-- **Waarom SQLite lokaal en MySQL prod?** SQLite = zero-config voor dev.
-  MySQL = wat prod-hosting nu eenmaal is. `DB_DRIVER`-toggle is bewust simpel.
-- **Waarom `/api/` in `/dist/`?** Zodat `dist/` één deploy-artifact is —
-  je uploadt het en klaar. Geen aparte deploy-stap voor de API.
-- **Waarom PHP-sessies?** Ze houden credentials uit de browserbundle en bieden
-  zonder extra packages een kleine, server-side beveiligingsgrens.
-- **Waarom `concurrently`?** Vite en PHP zijn twee losse processen; één
-  npm-script moet ze allebei starten. Alternatieven (Foreman, tmuxinator)
-  voegen buiten-npm-tools toe — `concurrently` is een dev-dep en werkt overal.
+- **Why SQLite locally and MySQL in production?** SQLite needs zero config for
+  dev. MySQL is what production hosting usually offers. The `DB_DRIVER` toggle
+  is kept simple on purpose.
+- **Why is `/api/` inside `/dist/`?** So `dist/` is a single deploy artifact:
+  upload it and you're done. The API needs no separate deploy step.
+- **Why PHP sessions?** They keep credentials out of the browser bundle and give
+  a small server-side security boundary without extra packages.
+- **Why `concurrently`?** Vite and PHP are two separate processes, and one npm
+  script has to start both. Alternatives (Foreman, tmuxinator) add tools outside
+  npm, while `concurrently` is a dev dependency that works everywhere.

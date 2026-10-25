@@ -17,7 +17,7 @@ function installDevelopmentSqliteSchema(PDO $db): void {
     $schemaPath = dirname(__DIR__, 2) . '/db/schema.sqlite.sql';
     $schema = file_get_contents($schemaPath);
     if ($schema === false) {
-        throw new RuntimeException('Het SQLite-schema kon niet worden gelezen.');
+        throw new RuntimeException('The SQLite schema could not be read.');
     }
     $db->exec($schema);
 }
@@ -53,7 +53,7 @@ function assertDatabaseSchema(PDO $db): void {
         $db->query('SELECT 1 FROM auth_login_attempts LIMIT 1');
     } catch (PDOException $exception) {
         throw new RuntimeException(
-            'Database-schema ontbreekt. Importeer db/schema.mysql.sql vóór deployment.',
+            'Database schema is missing. Import db/schema.mysql.sql before deployment.',
             0,
             $exception
         );
@@ -61,9 +61,9 @@ function assertDatabaseSchema(PDO $db): void {
 
     if ((int) $version !== DATABASE_SCHEMA_VERSION) {
         throw new RuntimeException(sprintf(
-            'Database-schema versie %s verwacht; versie %s gevonden.',
+            'Expected database schema version %s; found version %s.',
             DATABASE_SCHEMA_VERSION,
-            $version === false ? 'geen' : (string) $version
+            $version === false ? 'none' : (string) $version
         ));
     }
 }
@@ -76,7 +76,7 @@ function bootstrapDevelopmentAdmin(PDO $db): void {
 
     $username = normalizeUsername(BOOTSTRAP_ADMIN_USERNAME);
     if (!isValidUsername($username)) {
-        throw new RuntimeException('Ongeldige BOOTSTRAP_ADMIN_USERNAME.');
+        throw new RuntimeException('Invalid BOOTSTRAP_ADMIN_USERNAME.');
     }
 
     createUser($db, $username, BOOTSTRAP_ADMIN_PASSWORD, 'admin');
@@ -100,7 +100,7 @@ function createUser(PDO $db, string $username, string $password, string $role): 
 
     $created = findDatabaseUserById($db, $id);
     if ($created === null) {
-        throw new RuntimeException('Aangemaakte gebruiker kon niet worden geladen.');
+        throw new RuntimeException('The created user could not be loaded.');
     }
     return $created;
 }

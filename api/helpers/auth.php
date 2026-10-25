@@ -6,8 +6,8 @@ const LOGIN_MAX_ATTEMPTS_PER_IP_USERNAME = 5;
 const LOGIN_MAX_ATTEMPTS_PER_IP = 30;
 const LOGIN_MAX_ATTEMPTS_PER_USERNAME = 50;
 
-// Vaste bcrypt-hash (willekeurig wachtwoord) zodat onbekende gebruikers even
-// lang kosten als bestaande: alleen password_verify(), geen extra hash.
+// Fixed bcrypt hash (random password) so unknown users cost as much as
+// existing ones: only password_verify(), no extra hash.
 const LOGIN_DUMMY_PASSWORD_HASH = '$2y$12$ENlVjhW77QzZlX9WCr8HmegfiRwBVAJyncnZTrzwaBlKpyZMupUau';
 
 function startSecureSession(): void {
@@ -155,11 +155,11 @@ function loginPasswordHash(?array $user): string {
 }
 
 /**
- * Rate-limitbuckets voor één loginpoging. IP+gebruikersnaam blokkeert snel,
- * het IP-bucket stopt password spraying, het gebruikersnaam-bucket stopt
- * gedistribueerd raden op één account.
+ * Rate-limit buckets for one login attempt. IP+username blocks quickly,
+ * the IP bucket stops password spraying, the username bucket stops
+ * distributed guessing on one account.
  *
- * @return array<string, int> bucketsleutel => maximum aantal pogingen
+ * @return array<string, int> bucket key => maximum number of attempts
  */
 function loginRateLimitBuckets(string $ip, string $username): array {
     $username = normalizeUsername($username);
@@ -180,8 +180,8 @@ function pruneLoginAttempts(PDO $db, ?int $now = null): void {
 }
 
 /**
- * Verbruikt atomisch één poging uit een bucket. Geeft 0 terug als de poging
- * is toegestaan, anders het aantal seconden tot de blokkade verloopt.
+ * Atomically consumes one attempt from a bucket. Returns 0 if the attempt
+ * is allowed, otherwise the number of seconds until the block expires.
  */
 function consumeLoginAttempt(PDO $db, string $key, int $limit, ?int $now = null): int {
     $now ??= time();
@@ -198,8 +198,8 @@ function consumeLoginAttempt(PDO $db, string $key, int $limit, ?int $now = null)
         }
     }
 
-    // Eén UPDATE: check en ophoging kunnen niet door parallelle requests
-    // worden omzeild.
+    // A single UPDATE: parallel requests cannot bypass the check and the
+    // increment.
     $increment = $db->prepare(
         'UPDATE auth_login_attempts
          SET attempts = attempts + 1
@@ -227,7 +227,7 @@ function consumeLoginAttempt(PDO $db, string $key, int $limit, ?int $now = null)
 }
 
 /**
- * Verbruikt een poging uit ieder bucket en stopt met 429 zodra er één vol is.
+ * Consumes an attempt from every bucket and stops with 429 once one is full.
  */
 function assertLoginAllowed(PDO $db, string $ip, string $username, ?int $now = null): void {
     $now ??= time();
@@ -242,8 +242,8 @@ function assertLoginAllowed(PDO $db, string $ip, string $username, ?int $now = n
 }
 
 /**
- * Na een geslaagde login: IP+gebruikersnaam wissen en de poging teruggeven aan
- * de gedeelde IP- en gebruikersnaam-buckets, zodat legitiem verkeer niet telt.
+ * After a successful login: clear IP+username and refund the attempt to the
+ * shared IP and username buckets, so legitimate traffic does not count.
  */
 function recordSuccessfulLogin(PDO $db, string $ip, string $username, ?int $now = null): void {
     $now ??= time();

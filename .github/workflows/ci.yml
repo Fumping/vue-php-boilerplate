@@ -1,0 +1,71 @@
+name: CI
+
+# Pushes to main run this workflow through release.yml (workflow_call),
+# so CI does not run twice there.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.4']
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo, pdo_sqlite, pdo_mysql, mbstring
+          coverage: none
+
+      - name: Syntax check (php -l)
+        run: find api tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: API tests
+        run: |
+          php tests/api/auth.spec.php
+          php tests/api/production-schema.spec.php
+
+  frontend:
+    name: Frontend tests + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Vitest
+        run: npx vitest --run
+
+      - name: Build
+        run: npm run build
+
+      # dist/ is the deploy artifact: it must never contain secrets or local data.
+      - name: Check dist/ for sensitive files
+        run: |
+          leaks=$(find dist \( -name 'config.php' -o -name 'config.local.php' \
+            -o -name '*.sqlite*' -o -name '.env*' -o -name '*.log' \) -print)
+          if [ -n "$leaks" ]; then
+            echo "::error::Sensitive files in dist/:"
+            echo "$leaks"
+            exit 1
+          fi
+          test -f dist/index.html
+          test -f dist/api/index.php

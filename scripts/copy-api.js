@@ -6,7 +6,7 @@ function toPosix(p) {
 }
 
 function matchesGlob(pathPosix, pattern) {
-  // Ondersteunt: exact match, wildcard * (geen /), dubbele ** (recursief)
+  // Supports: exact match, wildcard * (no /), double ** (recursive)
   const re = new RegExp(
     '^' +
     pattern

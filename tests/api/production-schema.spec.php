@@ -18,7 +18,7 @@ try {
 }
 
 if (!$failedClosed) {
-    throw new RuntimeException('Productie zonder geïmporteerd schema moet falen.');
+    throw new RuntimeException('Production without an imported schema must fail.');
 }
 
 $createdTables = (int) $db->query(
@@ -27,7 +27,7 @@ $createdTables = (int) $db->query(
 )->fetchColumn();
 
 if ($createdTables !== 0) {
-    throw new RuntimeException('Productieruntime mag geen tabellen aanmaken.');
+    throw new RuntimeException('Production runtime must not create tables.');
 }
 
 echo "Production schema guard tests passed\n";

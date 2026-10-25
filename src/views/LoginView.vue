@@ -28,8 +28,8 @@ async function submit() {
     )
   } catch (e) {
     error.value = e.status === 429
-      ? 'Te veel mislukte pogingen. Probeer het over enkele minuten opnieuw.'
-      : 'Ongeldige gebruikersnaam of wachtwoord.'
+      ? 'Too many failed attempts. Try again in a few minutes.'
+      : 'Invalid username or password.'
   } finally {
     submitting.value = false
   }
@@ -43,12 +43,12 @@ async function submit() {
       @submit.prevent="submit"
     >
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Inloggen</h1>
-        <p class="mt-1 text-sm text-slate-500">Gebruik je gebruikersnaam en wachtwoord.</p>
+        <h1 class="text-2xl font-bold text-slate-800">Log in</h1>
+        <p class="mt-1 text-sm text-slate-500">Use your username and password.</p>
       </div>
 
       <label class="block space-y-1">
-        <span class="text-sm font-medium text-slate-700">Gebruikersnaam</span>
+        <span class="text-sm font-medium text-slate-700">Username</span>
         <input
           v-model="username"
           name="username"
@@ -59,7 +59,7 @@ async function submit() {
       </label>
 
       <label class="block space-y-1">
-        <span class="text-sm font-medium text-slate-700">Wachtwoord</span>
+        <span class="text-sm font-medium text-slate-700">Password</span>
         <input
           v-model="password"
           type="password"
@@ -77,7 +77,7 @@ async function submit() {
         :disabled="submitting"
         class="w-full rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
       >
-        {{ submitting ? 'Bezig…' : 'Inloggen' }}
+        {{ submitting ? 'Working…' : 'Log in' }}
       </button>
     </form>
   </main>
