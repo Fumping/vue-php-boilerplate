@@ -16,7 +16,7 @@ npm run test        # Vitest
 
 ## Stack
 
-Vue 3 (Composition API, `<script setup>`) · Vue Router · Vite · Tailwind ·
+Vue 3 (Composition API, `<script setup>`) · Vue Router 5 · Vite 8 · Tailwind 4 ·
 Vitest · PHP 8 flat router · PDO (SQLite locally, MySQL in production).
 
 ## Architecture on one page

@@ -36,10 +36,10 @@ Then open [http://localhost:5173/](http://localhost:5173/).
 
 | Layer | Technology |
 |---|---|
-| Frontend | Vue 3 (Composition API, `<script setup>`), Vue Router 4 |
-| Styling | Tailwind CSS 3.4 + PostCSS + Autoprefixer |
+| Frontend | Vue 3 (Composition API, `<script setup>`), Vue Router 5 |
+| Styling | Tailwind CSS 4 via `@tailwindcss/vite` (config lives in `src/style.css`) |
 | Build | Vite 8 |
-| Testing | Vitest + jsdom |
+| Testing | Vitest 5 + jsdom |
 | Backend | PHP 8 (flat router, no framework) |
 | Database | SQLite locally, MySQL in production (via `DB_DRIVER`) |
 | Dev server | `concurrently` runs Vite (5173) and the PHP built-in server (8000) side by side |
@@ -109,7 +109,7 @@ This produces a complete `dist/` folder containing:
 **CI/CD (GitHub Actions)**
 
 `.github/workflows/ci.yml` runs on every pull request. It runs `php -l` and the
-API tests on PHP 8.2 and 8.4, then Vitest and `npm run build`, and checks that
+API tests on PHP 8.2, 8.4 and 8.5, then Vitest and `npm run build`, and checks that
 `dist/` contains no `config.php`, SQLite data, `.env` files or logs.
 
 `.github/workflows/release.yml` runs on every push to `main`, or manually. It

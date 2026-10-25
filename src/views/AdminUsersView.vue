@@ -65,7 +65,7 @@ async function createUser() {
         <RouterLink to="/" class="text-sm text-slate-700 underline">Back</RouterLink>
       </header>
 
-      <section class="rounded-lg bg-white p-6 shadow-sm">
+      <section class="rounded-lg bg-white p-6 shadow-xs">
         <h2 class="text-lg font-semibold text-slate-800">Add user</h2>
         <form class="mt-4 grid gap-4 md:grid-cols-4" @submit.prevent="createUser">
           <input
@@ -75,7 +75,7 @@ async function createUser() {
             minlength="3"
             maxlength="50"
             required
-            class="rounded border border-slate-300 px-3 py-2"
+            class="rounded-sm border border-slate-300 px-3 py-2"
           />
           <input
             v-model="password"
@@ -85,16 +85,16 @@ async function createUser() {
             minlength="12"
             maxlength="72"
             required
-            class="rounded border border-slate-300 px-3 py-2"
+            class="rounded-sm border border-slate-300 px-3 py-2"
           />
-          <select v-model="role" class="rounded border border-slate-300 px-3 py-2">
+          <select v-model="role" class="rounded-sm border border-slate-300 px-3 py-2">
             <option value="user">User</option>
             <option value="admin">Admin</option>
           </select>
           <button
             type="submit"
             :disabled="submitting"
-            class="rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
+            class="rounded-sm bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
           >
             Add
           </button>
@@ -103,7 +103,7 @@ async function createUser() {
         <p v-if="success" role="status" class="mt-3 text-sm text-green-700">{{ success }}</p>
       </section>
 
-      <section class="overflow-hidden rounded-lg bg-white shadow-sm">
+      <section class="overflow-hidden rounded-lg bg-white shadow-xs">
         <p v-if="loading" class="p-6 text-slate-500">Loading…</p>
         <table v-else class="w-full text-left text-sm">
           <thead class="bg-slate-100 text-slate-600">

@@ -13,17 +13,16 @@
     "test:ci": "vitest --run && php tests/api/auth.spec.php && php tests/api/production-schema.spec.php"
   },
   "dependencies": {
-    "vue": "^3.5.30",
-    "vue-router": "^4.6.4"
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.5",
-    "autoprefixer": "^10.4.27",
-    "concurrently": "^9.1.0",
-    "jsdom": "^29.0.1",
-    "postcss": "^8.5.8",
-    "tailwindcss": "^3.4.19",
-    "vite": "^8.0.1",
-    "vitest": "^4.1.2"
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "concurrently": "^10.0.6",
+    "jsdom": "^30.1.3",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }
