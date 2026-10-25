@@ -1,7 +1,7 @@
 {
   "name": "{{APP_NAME}}",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n vite,php -c cyan,magenta \"vite\" \"php -S localhost:8000 api/index.php\"",

@@ -1,11 +1,15 @@
 <?php
 
 const LOGIN_WINDOW_SECONDS = 900;
-const LOGIN_MAX_ATTEMPTS = 5;
-// Extra per-IP budget across all usernames, so one IP cannot spray passwords
-// over many accounts while staying under the per-account limit.
-const LOGIN_MAX_ATTEMPTS_PER_IP = 20;
 const LOGIN_BLOCK_SECONDS = 900;
+const LOGIN_MAX_ATTEMPTS_PER_IP_USERNAME = 5;
+const LOGIN_MAX_ATTEMPTS_PER_IP = 30;
+const LOGIN_MAX_ATTEMPTS_PER_USERNAME = 50;
+
+// Salt and hash of a random password. loginDummyPasswordHash() prefixes the
+// runtime's default bcrypt cost, so unknown users cost as much as existing
+// ones (which are rehashed to that cost on login): only password_verify().
+const LOGIN_DUMMY_PASSWORD_HASH_BODY = 'ENlVjhW77QzZlX9WCr8HmegfiRwBVAJyncnZTrzwaBlKpyZMupUau';
 
 function startSecureSession(): void {
     if (session_status() === PHP_SESSION_ACTIVE) {
@@ -147,78 +151,117 @@ function logoutCurrentUser(): void {
     session_destroy();
 }
 
-function assertLoginAllowed(PDO $db, string $ip): void {
-    $stmt = $db->prepare(
-        'SELECT attempts, window_started, blocked_until
-         FROM auth_login_attempts
-         WHERE ip = :ip'
-    );
-    $stmt->execute(['ip' => $ip]);
-    $attempt = $stmt->fetch();
-
-    if ($attempt !== false && (int) $attempt['blocked_until'] > time()) {
-        errorResponse('too_many_login_attempts', 429, [
-            'retryAfter' => (int) $attempt['blocked_until'] - time(),
-        ]);
-    }
+function loginDummyPasswordHash(): string {
+    return sprintf('$2y$%02d$', PASSWORD_BCRYPT_DEFAULT_COST) . LOGIN_DUMMY_PASSWORD_HASH_BODY;
 }
 
-function recordFailedLogin(PDO $db, string $ip, int $maxAttempts = LOGIN_MAX_ATTEMPTS): void {
-    $now = time();
-    $stmt = $db->prepare(
-        'SELECT attempts, window_started
-         FROM auth_login_attempts
-         WHERE ip = :ip'
-    );
-    $stmt->execute(['ip' => $ip]);
-    $attempt = $stmt->fetch();
+function loginPasswordHash(?array $user): string {
+    return $user['password_hash'] ?? loginDummyPasswordHash();
+}
 
-    if ($attempt === false) {
+/**
+ * Rate-limit buckets for one login attempt. IP+username blocks quickly,
+ * the IP bucket stops password spraying, the username bucket stops
+ * distributed guessing on one account.
+ *
+ * @return array<string, int> bucket key => maximum number of attempts
+ */
+function loginRateLimitBuckets(string $ip, string $username): array {
+    $username = normalizeUsername($username);
+    return [
+        hash('sha256', "ip-user\0" . $ip . "\0" . $username) => LOGIN_MAX_ATTEMPTS_PER_IP_USERNAME,
+        hash('sha256', "ip\0" . $ip) => LOGIN_MAX_ATTEMPTS_PER_IP,
+        hash('sha256', "user\0" . $username) => LOGIN_MAX_ATTEMPTS_PER_USERNAME,
+    ];
+}
+
+function pruneLoginAttempts(PDO $db, ?int $now = null): void {
+    $now ??= time();
+    $stmt = $db->prepare(
+        'DELETE FROM auth_login_attempts
+         WHERE window_started <= :window_expired AND blocked_until <= :now'
+    );
+    $stmt->execute(['window_expired' => $now - LOGIN_WINDOW_SECONDS, 'now' => $now]);
+}
+
+/**
+ * Atomically consumes one attempt from a bucket. Returns 0 if the attempt
+ * is allowed, otherwise the number of seconds until the block expires.
+ */
+function consumeLoginAttempt(PDO $db, string $key, int $limit, ?int $now = null): int {
+    $now ??= time();
+
+    try {
         $insert = $db->prepare(
-            'INSERT INTO auth_login_attempts (
-                ip, attempts, window_started, blocked_until
-            ) VALUES (
-                :ip, 1, :window_started, 0
-            )'
+            'INSERT INTO auth_login_attempts (ip, attempts, window_started, blocked_until)
+             VALUES (:ip, 0, :now, 0)'
         );
-        $insert->execute(['ip' => $ip, 'window_started' => $now]);
-        return;
+        $insert->execute(['ip' => $key, 'now' => $now]);
+    } catch (PDOException $exception) {
+        if ((string) $exception->getCode() !== '23000') {
+            throw $exception;
+        }
     }
 
-    $windowStarted = (int) $attempt['window_started'];
-    $attempts = (int) $attempt['attempts'];
-    if ($windowStarted <= $now - LOGIN_WINDOW_SECONDS) {
-        $windowStarted = $now;
-        $attempts = 1;
-    } else {
-        $attempts++;
-    }
-    $blockedUntil = $attempts >= $maxAttempts ? $now + LOGIN_BLOCK_SECONDS : 0;
-
-    $update = $db->prepare(
+    // A single UPDATE: parallel requests cannot bypass the check and the
+    // increment.
+    $increment = $db->prepare(
         'UPDATE auth_login_attempts
-         SET attempts = :attempts,
-             window_started = :window_started,
-             blocked_until = :blocked_until
-         WHERE ip = :ip'
+         SET attempts = attempts + 1
+         WHERE ip = :ip AND blocked_until <= :now AND attempts < :limit'
     );
-    $update->execute([
-        'attempts' => $attempts,
-        'window_started' => $windowStarted,
-        'blocked_until' => $blockedUntil,
-        'ip' => $ip,
+    $increment->execute(['ip' => $key, 'now' => $now, 'limit' => $limit]);
+    if ($increment->rowCount() === 1) {
+        return 0;
+    }
+
+    $block = $db->prepare(
+        'UPDATE auth_login_attempts
+         SET blocked_until = :blocked_until
+         WHERE ip = :ip AND blocked_until <= :now'
+    );
+    $block->execute([
+        'ip' => $key,
+        'now' => $now,
+        'blocked_until' => $now + LOGIN_BLOCK_SECONDS,
     ]);
+
+    $stmt = $db->prepare('SELECT blocked_until FROM auth_login_attempts WHERE ip = :ip');
+    $stmt->execute(['ip' => $key]);
+    return max(1, (int) $stmt->fetchColumn() - $now);
 }
 
-function clearFailedLogins(PDO $db, string $ip): void {
-    $stmt = $db->prepare('DELETE FROM auth_login_attempts WHERE ip = :ip');
-    $stmt->execute(['ip' => $ip]);
+/**
+ * Consumes an attempt from every bucket and stops with 429 once one is full.
+ */
+function assertLoginAllowed(PDO $db, string $ip, string $username, ?int $now = null): void {
+    $now ??= time();
+    pruneLoginAttempts($db, $now);
+
+    foreach (loginRateLimitBuckets($ip, $username) as $key => $limit) {
+        $retryAfter = consumeLoginAttempt($db, $key, $limit, $now);
+        if ($retryAfter > 0) {
+            errorResponse('too_many_login_attempts', 429, ['retryAfter' => $retryAfter]);
+        }
+    }
 }
 
-function loginRateLimitKey(string $ip, string $username): string {
-    return hash('sha256', $ip . "\0" . normalizeUsername($username));
-}
+/**
+ * After a successful login: clear IP+username and refund the attempt to the
+ * shared IP and username buckets, so legitimate traffic does not count.
+ */
+function recordSuccessfulLogin(PDO $db, string $ip, string $username, ?int $now = null): void {
+    $now ??= time();
+    [$ipUserKey, $ipKey, $userKey] = array_keys(loginRateLimitBuckets($ip, $username));
 
-function loginIpRateLimitKey(string $ip): string {
-    return hash('sha256', 'ip' . "\0" . $ip);
+    $delete = $db->prepare('DELETE FROM auth_login_attempts WHERE ip = :ip');
+    $delete->execute(['ip' => $ipUserKey]);
+
+    $refund = $db->prepare(
+        'UPDATE auth_login_attempts
+         SET attempts = attempts - 1
+         WHERE ip = :ip AND attempts > 0 AND blocked_until <= :now'
+    );
+    $refund->execute(['ip' => $ipKey, 'now' => $now]);
+    $refund->execute(['ip' => $userKey, 'now' => $now]);
 }
