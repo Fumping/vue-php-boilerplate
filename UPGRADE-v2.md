@@ -142,34 +142,68 @@ Apps created before boilerplate `v1.0.0` miss the login hardening. Check
 
 ### Phase 1b: v2 security additions (always check)
 
-Boilerplate v2 adds three more fixes on top of v1.0.0. Port each one that is
+Boilerplate v2 adds these fixes on top of v1.0.0. Port each one that is
 missing, from the boilerplate's `main` branch (or the `migration` branch until
-v2 is released):
+v2 is released). None of them changes the database schema.
 
 | Check | Present when |
 |---|---|
 | Passwords capped at 72 bytes (bcrypt ignores the rest) | `isStrongPassword()` in `api/helpers/database.php` rejects `strlen($password) > 72` |
-| IPv6 clients rate-limited per /64 | `api/helpers/request.php` has `function rateLimitIp` and `clientIp()` uses it |
-| Change-password guessing limit | `api/helpers/auth.php` has `function assertPasswordChangeAllowed`, called in `auth-change-password.php` after `requireJsonBody()`, and `clearPasswordChangeAttempts()` after a successful update |
+| IPv6 clients rate-limited per /64 | `api/helpers/request.php` has `function rateLimitIp` |
+| Trusted reverse proxies | `api/helpers/request.php` has `function resolveClientIp` |
+| Development mode only answers loopback clients | `api/index.php` calls `assertDevelopmentClientIsLocal()` |
+| Change-password guessing limit | `api/helpers/auth.php` has `function assertPasswordChangeAllowed` |
+| Trusted-device cookies against account lockout | `api/helpers/auth.php` has `function trustedDeviceKey` |
+| Session idle/absolute timeout, no anonymous sessions, `__Host-` cookies | `api/helpers/auth.php` has `SESSION_IDLE_SECONDS` and `function hasSessionCookie` |
 
 1. **72-byte cap:** change the upper bound in `isStrongPassword()` from 200 to
    72 and set `maxlength="72"` on password inputs in the app's views. Existing
-   longer passwords keep working at login; only new passwords are checked. If
-   the app documents a different maximum, update that text too.
-2. **IPv6 /64:** copy `rateLimitIp()` and the new `clientIp()` body. If the app
-   reads the client IP from a proxy header instead of `REMOTE_ADDR`, **STOP**
-   and ask the user; pass that value through `rateLimitIp()` instead.
-3. **Change-password limit:** copy `PASSWORD_CHANGE_MAX_ATTEMPTS`,
-   `passwordChangeRateLimitKey`, `assertPasswordChangeAllowed` and
-   `clearPasswordChangeAttempts`, add the two calls to the handler, and map the
-   `too_many_attempts` error to a message in the change-password view.
-4. Port the matching tests (`rateLimitIp` assertions and the 72-byte test) to
-   `tests/api/auth.spec.php`, which now also requires `api/helpers/request.php`.
-5. If the app still has `scripts/create-app.sh`, copy its rsync exclude list:
-   it now skips every `.env*` except `.env.example`, `api/config*.php` except
-   the example, and all of `api/storage/` except `.htaccess` and `.gitkeep`.
+   longer passwords keep working at login; only new passwords are checked.
+2. **Client IP:** copy `clientIp()`, `rateLimitIp()`, `resolveClientIp()`,
+   `ipMatchesAny()`, `ipInRange()`, `isLoopbackIp()` and
+   `assertDevelopmentClientIsLocal()` into `api/helpers/request.php`. If the app
+   already reads the client IP from a proxy header, **STOP** and ask the user
+   which proxies to list in `TRUSTED_PROXIES`.
+3. **Development guard:** call `assertDevelopmentClientIsLocal();` in
+   `api/index.php` right after `validateAppConfig($configPath);`. If the app is
+   developed in Docker or on a VM that reaches PHP over the network, tell the
+   user to set `define('DEV_ALLOW_REMOTE_CLIENTS', true);` in their local
+   `api/config.php` (the agent must not edit that file).
+4. **Config template:** add the `DEV_ALLOW_REMOTE_CLIENTS` and
+   `TRUSTED_PROXIES` blocks to `api/config.example.php`. Existing
+   `config.php` files keep working without them (the code uses `defined()`).
+5. **`api/helpers/auth.php`:** port the new constants
+   (`LOGIN_MAX_ATTEMPTS_PER_DEVICE`, `PASSWORD_CHANGE_MAX_ATTEMPTS`,
+   `SESSION_IDLE_SECONDS`, `SESSION_ABSOLUTE_SECONDS`, `TRUSTED_DEVICE_SECONDS`)
+   and functions (`authCookieName`, `authCookieOptions`, `hasSessionCookie`,
+   `trustedDeviceCookieName`, `trustedDeviceMac`, `issueTrustedDeviceCookie`,
+   `trustedDeviceKey`, `passwordChangeRateLimitKey`,
+   `assertPasswordChangeAllowed`, `clearPasswordChangeAttempts`), and the
+   updated `startSecureSession`, `requireCsrfToken`, `currentUser`, `loginUser`,
+   `loginRateLimitBuckets`, `assertLoginAllowed` and `recordSuccessfulLogin`.
+   `assertLoginAllowed()` and `recordSuccessfulLogin()` take a new
+   `?string $deviceKey` before `$now`: update every caller, including tests.
+6. **Handlers:** port the reference `auth-login.php` (user lookup and
+   `trustedDeviceKey()` before `assertLoginAllowed()`, `issueTrustedDeviceCookie()`
+   before `loginUser()`), `auth-change-password.php` (attempt limit, clearing
+   it and reissuing the device cookie) and `auth-me.php` (`csrfToken` is `null`
+   for anonymous visitors). Keep project-specific additions.
+7. **Frontend:** map the `too_many_attempts` error to a message in the
+   change-password view. If app code reads `csrfToken` from `/auth/me` for
+   anonymous visitors, **STOP**: it is now `null` until login.
+8. **Behaviour change to tell the user about:** all users are logged out once
+   after deploying, because the session cookie name changes in production
+   (`__Host-` prefix) and old sessions have no timestamps.
+9. Port the matching tests from the reference `tests/api/auth.spec.php` (the
+   72-byte, `rateLimitIp`, trusted-device, session and client-IP sections). It
+   now also requires `api/helpers/request.php` and defines
+   `SESSION_COOKIE_SECURE`.
+10. If the app still has `scripts/create-app.sh`, copy its rsync exclude list:
+    it now skips every `.env*` except `.env.example`, `api/config*.php` except
+    the example, and all of `api/storage/` except `.htaccess` and `.gitkeep`.
 
-- **Verify:** `php -l` on the changed files and `php tests/api/auth.spec.php`.
+- **Verify:** `php -l` on the changed files, `php tests/api/auth.spec.php`, and
+  log in, change the password and log out in the browser.
 - **Commit:** `fix: port boilerplate v2 security additions`
 
 ---
@@ -346,6 +380,12 @@ npm audit
 - **CI** (`.github/workflows/*.yml`, if present): `node-version` must be 24 or
   newer, or 22.22+. Update artifact paths if Vitest reporters moved to
   `.vitest/`.
+  Pin every third-party action to the commit SHA the boilerplate uses (with
+  the version as a comment), and add `persist-credentials: false` to
+  `actions/checkout` when the job never pushes.
+- **`README.md` deploy section:** copy the boilerplate's "Web server
+  requirements" block and the `TRUSTED_PROXIES` note if the app's README has
+  its own deploy steps.
 - **Commit:** `docs: update for Tailwind 4, vue-router 5 and Vitest 5`
 
 ---

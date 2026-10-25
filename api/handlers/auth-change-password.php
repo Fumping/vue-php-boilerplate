@@ -31,6 +31,7 @@ $stmt->execute([
 
 clearPasswordChangeAttempts($db, $user['id']);
 $updatedUser = findUserById($db, $user['id']);
+issueTrustedDeviceCookie($updatedUser);
 loginUser($updatedUser);
 jsonResponse([
     'user' => publicUser($updatedUser),

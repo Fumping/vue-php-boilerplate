@@ -24,13 +24,13 @@ async function signOut() {
         <div>
           <h1 class="text-3xl font-bold text-slate-800">Boilerplate</h1>
           <p class="mt-1 text-slate-600">
-            Logged in as <strong>{{ user.username }}</strong>
+            Logged in as <strong>{{ user?.username }}</strong>
           </p>
         </div>
         <button class="text-sm text-slate-700 underline" @click="signOut">Log out</button>
       </header>
 
-      <section v-if="user.role === 'admin'" class="rounded-lg bg-white p-6 shadow-xs">
+      <section v-if="user?.role === 'admin'" class="rounded-lg bg-white p-6 shadow-xs">
         <h2 class="text-lg font-semibold text-slate-800">Admin</h2>
         <p class="mt-1 text-sm text-slate-500">Add users and manage their roles.</p>
         <RouterLink
